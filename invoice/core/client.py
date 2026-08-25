@@ -6,6 +6,7 @@ import requests
 
 from invoice.core.address import Address
 from invoice.core.exceptions import APIError, ConnectionFailedError
+from invoice.core.product import Product
 from invoice.core.types import DocumentType
 
 
@@ -76,10 +77,7 @@ class Invoice:
         description: str,
         amount: float,
         address: Address,
-        ncm: str | None = None,
-        cfop: str | None = None,
-        unit: str = "UN",
-        quantity: float = 1.0,
+        product: Product | None = None,
     ) -> dict:
         """
         Issues a fiscal document. `POST /api/v1/invoices`.
@@ -94,13 +92,9 @@ class Invoice:
             address (Address): Customer's address — `address.state`
                 is required for NFE, `address.city_code` for NFSE
                 (no separate `state`/`city_code` args).
-            ncm (str | None): NFE only, required — NCM code (8 digits,
-                or "00" for services/non-goods).
-            cfop (str | None): NFE only, required — CFOP code for
-                this operation.
-            unit (str): NFE only — commercial unit. Default "UN".
-            quantity (float): NFE only — commercial quantity. Default
-                1 (the unit price is then `amount`).
+            product (Product | None): NCM/CFOP/unit/quantity — NFE
+                only, required (`product.ncm`/`product.cfop`); NFSE
+                ignores it entirely (a service has none of that).
 
         Returns:
             dict: The authorizer's response (via invoice-api), already
@@ -109,14 +103,14 @@ class Invoice:
         Raises:
             ValueError: if the field `document_type` needs from
                 `address` (`state` for NFE, `city_code` for NFSE)
-                wasn't set, or if `document_type` is NFE and `ncm`/
-                `cfop` weren't set.
+                wasn't set, or if `document_type` is NFE and `product`
+                (or its `ncm`/`cfop`) wasn't set.
         """
         if document_type is DocumentType.NFE:
-            if not ncm:
-                raise ValueError("ncm is required for NFE")
-            if not cfop:
-                raise ValueError("cfop is required for NFE")
+            if product is None or not product.ncm:
+                raise ValueError("product.ncm is required for NFE")
+            if not product.cfop:
+                raise ValueError("product.cfop is required for NFE")
 
         payload = {
             "document_type": document_type.value,
@@ -125,11 +119,9 @@ class Invoice:
             "description": description,
             "amount": amount,
             "address": address.to_dict(),
-            "ncm": ncm,
-            "cfop": cfop,
-            "unit": unit,
-            "quantity": quantity,
         }
+        if product is not None:
+            payload["product"] = product.to_dict()
         payload.update(self._required_field(document_type, address))
 
         return self._request("POST", "/invoices", json=payload)

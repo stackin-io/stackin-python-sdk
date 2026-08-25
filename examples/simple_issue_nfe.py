@@ -6,6 +6,7 @@ from invoice import (
     ConnectionFailedError,
     DocumentType,
     Invoice,
+    Product,
 )
 
 
@@ -20,8 +21,7 @@ def main():
             description="Test product",
             amount=100.00,
             address=Address(state="SP"),
-            ncm="84713012",
-            cfop="5102",
+            product=Product(ncm="84713012", cfop="5102"),
         )
     except ConnectionFailedError:
         print("invoice-api is not running on localhost:8000")

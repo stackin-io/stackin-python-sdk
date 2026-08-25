@@ -6,12 +6,14 @@ __description__ = "🧾 Human Python SDK for invoice-api — issue, consult, can
 from .core.address import Address
 from .core.client import Invoice
 from .core.exceptions import APIError, ConnectionFailedError, InvoiceError
+from .core.product import Product
 from .core.types import DocumentType
 
 __all__ = [
     "Invoice",
     "DocumentType",
     "Address",
+    "Product",
     "InvoiceError",
     "APIError",
     "ConnectionFailedError",
