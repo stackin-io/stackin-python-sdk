@@ -92,7 +92,8 @@ class Invoice:
                 (no separate `state`/`city_code` args).
 
         Returns:
-            dict: The authorizer's response (via invoice-api).
+            dict: The authorizer's response (via invoice-api), already
+                unwrapped from the API's `{"result": ...}` envelope.
 
         Raises:
             ValueError: if the field `document_type` needs from
@@ -212,14 +213,15 @@ class Invoice:
         except requests.RequestException as error:
             raise ConnectionFailedError(str(error)) from error
 
+        try:
+            body = response.json() if response.content else {}
+        except ValueError:
+            body = {}
+
         if not response.ok:
-            try:
-                body = response.json() if response.content else {}
-            except ValueError:
-                body = {}
             raise APIError(
                 status_code=response.status_code,
                 detail=body.get("detail", response.text),
             )
 
-        return response.json() if response.content else {}
+        return body.get("result", body)
