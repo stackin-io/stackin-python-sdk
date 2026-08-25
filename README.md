@@ -5,7 +5,8 @@ Human Python SDK for [invoice-api](../invoice_api) — a handful of business fie
 ## Usage
 
 ```python
-from invoice import Invoice, DocumentType, Address, Product
+from invoice import Invoice, DocumentType, Address
+from invoice.br import Product  # Brazil-specific — NCM/CFOP
 
 client = Invoice(base_url="https://invoice-api.example.com")
 

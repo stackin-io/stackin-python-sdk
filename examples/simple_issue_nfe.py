@@ -6,8 +6,8 @@ from invoice import (
     ConnectionFailedError,
     DocumentType,
     Invoice,
-    Product,
 )
+from invoice.br import Product
 
 
 def main():
