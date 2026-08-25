@@ -5,7 +5,7 @@ Human Python SDK for [invoice-api](../invoice_api) — a handful of business fie
 ## Usage
 
 ```python
-from invoice import Invoice, DocumentType, Address
+from invoice import Invoice, DocumentType, Address, Product
 
 client = Invoice(base_url="https://invoice-api.example.com")
 
@@ -25,7 +25,8 @@ client.cancel(
     reason="Typo",
 )
 
-# NFE reads state from address.state instead of address.city_code:
+# NFE reads state from address.state instead of address.city_code,
+# and requires a Product (NCM/CFOP — Brazil-specific, NFSE has none of this):
 client.issue(
     document_type=DocumentType.NFE,
     client_name="Buyer Company Ltd",
@@ -33,16 +34,19 @@ client.issue(
     description="Test product",
     amount=100.00,
     address=Address(state="SP"),
+    product=Product(ncm="84713012", cfop="5102"),
 )
 ```
 
 `Address` only requires the field `document_type` actually needs (`state` for NFE, `city_code` for NFSE) — everything else (`street`, `number`, `neighborhood`, `city`, `zip_code`) is optional, fill in only what you have.
 
+`Product` (`ncm`/`cfop`/`unit`/`quantity`) is required for NFE, ignored for NFSE — NCM/CFOP are Brazilian tax classification codes with no NFSE equivalent (a service isn't a physical good).
+
 ## Errors
 
 - `invoice.APIError` — the API responded with a non-2xx status (`status_code`, `detail`).
 - `invoice.ConnectionFailedError` — the API didn't respond (network/DNS/timeout).
-- `ValueError` — `issue()` is missing the address field its `document_type` needs.
+- `ValueError` — `issue()` is missing a field its `document_type` needs (address field, or `product.ncm`/`product.cfop` for NFE).
 
 ## Structure
 
@@ -51,7 +55,8 @@ invoice/
 ├── __init__.py
 └── core/
     ├── client.py       # Invoice class — issue/consult/cancel
-    ├── address.py       # Address (pydantic)
+    ├── address.py      # Address (pydantic)
+    ├── product.py      # Product (pydantic) — NFE only
     ├── exceptions.py
     └── types.py        # DocumentType
 ```
