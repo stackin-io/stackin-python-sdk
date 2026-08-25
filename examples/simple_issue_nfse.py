@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-"""Minimal NFSE issuance — the only NFSE-specific field
-invoice-api requires is issuer_address.city_code (IBGE code of where the
-service is provided, cLocPrestacao). No Product here — NCM/CFOP
+"""Minimal NFSE issuance — `api_key` (the issuing company's key,
+POST /api/v1/companies) is the only thing invoice-api needs to
+resolve the issuer's city/certificate. No Product here — NCM/CFOP
 don't apply to a service.
 
 Note: NFSE's signature algorithm is genuinely unconfirmed (see
@@ -9,7 +9,6 @@ plan/IMPLEMENTATION.md section 10), so this example is expected to
 get a 501 from invoice-api today, not a successful issuance."""
 
 from invoice import (
-    Address,
     APIError,
     ConnectionFailedError,
     DocumentType,
@@ -18,7 +17,10 @@ from invoice import (
 
 
 def main():
-    client = Invoice(base_url="http://localhost:8000")
+    client = Invoice(
+        base_url="http://localhost:8000",
+        api_key="COMPANY_API_KEY"
+    )
 
     try:
         result = client.issue(
@@ -27,7 +29,6 @@ def main():
             tax_id="00000000000",
             description="Software development",
             amount=5000.00,
-            issuer_address=Address(city_code="4106902"),
         )
     except ConnectionFailedError:
         print("invoice-api is not running on localhost:8000")

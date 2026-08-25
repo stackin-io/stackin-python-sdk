@@ -28,7 +28,6 @@ class Invoice:
                 tax_id="00000000000",
                 description="Test product",
                 amount=100.00,
-                issuer_address=Address(state="PR"),
             )
 
             status = client.consult(
@@ -48,8 +47,10 @@ class Invoice:
     Args:
         base_url (str): Base URL of invoice-api (e.g.
             "https://invoice-api.example.com", without `/api/v1`).
-        api_key (str | None): Auth token, if the API requires one
-            (sent as `Authorization: Bearer <api_key>`).
+        api_key (str | None): The issuing company's API key (from
+            `POST /api/v1/companies`), sent as
+            `Authorization: Bearer <api_key>` — required, invoice-api
+            resolves the issuer entirely from it.
         timeout (int): Timeout in seconds for HTTP calls.
 
     Attributes:
@@ -76,7 +77,6 @@ class Invoice:
         tax_id: str,
         description: str,
         amount: float,
-        issuer_address: Address,
         extra: Product | None = None,
         recipient_address: Address | None = None,
     ) -> dict:
@@ -91,6 +91,11 @@ class Invoice:
         new parameter here, just a new type this slot accepts (see
         `invoice.br.Product` for the shape a country's type follows).
 
+        The issuer (CNPJ, address, state, certificate, environment)
+        isn't a parameter here — invoice-api resolves it entirely
+        from `api_key` (the issuing company's own key, set on
+        `Invoice(...)`), see `POST /api/v1/companies`.
+
         Args:
             document_type (DocumentType): NFE or NFSE.
             client_name (str): Customer's name/company name (service
@@ -98,11 +103,6 @@ class Invoice:
             tax_id (str): Customer's CPF/CNPJ, digits only.
             description (str): Service/product description.
             amount (float): Total amount.
-            issuer_address (Address): `.state` (NFE) or `.city_code`
-                (NFSE) picks the issuer's own authorizer — only those
-                two fields are read, nothing else in `Address` is
-                sent anywhere yet. Use `recipient_address` for the
-                actual customer.
             extra (Product | None): Country-specific data. For NFE,
                 requires a `Product` with `ncm`/`cfop` set; NFSE
                 ignores this entirely (a service has none of that).
@@ -118,10 +118,7 @@ class Invoice:
                 unwrapped from the API's `{"result": ...}` envelope.
 
         Raises:
-            ValueError: if `document_type` needs
-                `issuer_address.state` (NFE) or
-                `issuer_address.city_code` (NFSE) and it wasn't set,
-                or if `document_type` is NFE and `extra` isn't a
+            ValueError: if `document_type` is NFE and `extra` isn't a
                 `Product` with `ncm`/`cfop` set.
         """
         if document_type is DocumentType.NFE:
@@ -141,31 +138,14 @@ class Invoice:
             payload["product"] = extra.to_dict()
         if recipient_address and recipient_address.state:
             payload["recipient_state"] = recipient_address.state
-        payload.update(self._required_field(document_type, issuer_address))
 
         return self._request("POST", "/invoices", json=payload)
-
-    @staticmethod
-    def _required_field(
-        document_type: DocumentType, issuer_address: Address
-    ) -> dict:
-        """`issuer_address.state` (NFE) or `issuer_address.city_code`
-        (NFSE) — whichever `document_type` needs."""
-        if document_type is DocumentType.NFE:
-            if not issuer_address.state:
-                raise ValueError("issuer_address.state is required for NFE")
-            return {"state": issuer_address.state}
-
-        if not issuer_address.city_code:
-            raise ValueError("issuer_address.city_code is required for NFSE")
-        return {"city_code": issuer_address.city_code}
 
     def consult(
         self,
         access_key: str,
         *,
         document_type: DocumentType,
-        state: str | None = None,
     ) -> dict:
         """
         Consults a fiscal document by its access key.
@@ -174,15 +154,11 @@ class Invoice:
         Args:
             access_key (str): The document's access key.
             document_type (DocumentType): NFE or NFSE.
-            state (str | None): Two-letter state code — required
-                for NFE.
 
         Returns:
             dict: The document's current status.
         """
         params = {"document_type": document_type.value}
-        if state:
-            params["state"] = state
 
         return self._request(
             "GET", f"/invoices/{access_key}", params=params
@@ -194,7 +170,6 @@ class Invoice:
         *,
         document_type: DocumentType,
         reason: str,
-        state: str | None = None,
     ) -> dict:
         """
         Cancels a fiscal document by its access key.
@@ -204,8 +179,6 @@ class Invoice:
             access_key (str): The document's access key.
             document_type (DocumentType): NFE or NFSE.
             reason (str): Cancellation reason.
-            state (str | None): Two-letter state code — required
-                for NFE.
 
         Returns:
             dict: The cancellation result.
@@ -214,8 +187,6 @@ class Invoice:
             "document_type": document_type.value,
             "reason": reason,
         }
-        if state:
-            payload["state"] = state
 
         return self._request(
             "POST", f"/invoices/{access_key}/cancel", json=payload

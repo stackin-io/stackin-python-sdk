@@ -28,6 +28,9 @@
 
 ## Unreleased
 
+### Changed (breaking)
+- `issue()`/`consult()`/`cancel()` drop `issuer_address`/`state` params entirely — invoice-api is now multi-tenant and resolves the issuer (CNPJ, state, address, certificate, environment) from `api_key` alone (one key per company, from `POST /api/v1/companies`). `api_key` on `Invoice(...)` goes from optional to required in practice. `recipient_address` is the only `Address` param left on `issue()`.
+
 ### Removed
 - `DocumentType.FACTURA`, `invoice.ar.InvoiceDocument`/`InvoiceClass` — Argentina scaffold, removed with invoice-api's matching removal (no confirmed WSFEv1 source ever surfaced). `issue()`'s `extra` param is back to `Product | None`. The generic-slot pattern stays: a future country's type just needs to fit `extra` the same way `Product` does.
 

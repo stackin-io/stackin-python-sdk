@@ -2,7 +2,8 @@
 """Minimal NFE issuance — every field here is required by
 invoice-api for document_type=NFE:
 
-- issuer_address.state: issuer's UF, resolves the SEFAZ/UF authorizer.
+- api_key: the issuing company's key (POST /api/v1/companies) —
+  invoice-api resolves the issuer's UF/address/certificate from it.
 - product.ncm/product.cfop: required XSD fields (tax classification/
   operation code), no NFE-valid default exists for either.
 - recipient_address.state: optional, but sets idDest correctly
@@ -22,7 +23,10 @@ from invoice.br import Product
 
 
 def main():
-    client = Invoice(base_url="http://localhost:8000")
+    client = Invoice(
+        base_url="http://localhost:8000",
+        api_key="COMPANY_API_KEY"
+    )
 
     try:
         result = client.issue(
@@ -32,7 +36,6 @@ def main():
             description="Test product",
             amount=100.00,
             extra=Product(ncm="84713012", cfop="5102"),
-            issuer_address=Address(state="SP"),
             recipient_address=Address(state="RJ"),
         )
     except ConnectionFailedError:
