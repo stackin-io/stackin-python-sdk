@@ -7,11 +7,10 @@ from enum import Enum
 
 class DocumentType(str, Enum):
     """Fiscal document type to issue/consult/cancel. Doubles as the
-    jurisdiction selector: NFE/NFSE are Brazilian (SEFAZ/UF, national
-    ADN); FACTURA is Argentina's WSFEv1 — wired end to end but always
-    fails today (no confirmed WSAA/WSFEv1 host, see
-    invoice-api/plan/ARGENTINA.md)."""
+    jurisdiction selector today — both values are Brazilian (SEFAZ/UF,
+    national ADN). A new country adds a member here plus a matching
+    `invoice.<country>` package (see `invoice.br`) and
+    `invoice-api/app/providers/<country>/`."""
 
     NFE = "nfe"
     NFSE = "nfse"
-    FACTURA = "factura"

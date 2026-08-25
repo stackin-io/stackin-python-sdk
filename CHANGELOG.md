@@ -28,6 +28,9 @@
 
 ## Unreleased
 
+### Removed
+- `DocumentType.FACTURA`, `invoice.ar.InvoiceDocument`/`InvoiceClass` — Argentina scaffold, removed with invoice-api's matching removal (no confirmed WSFEv1 source ever surfaced). `issue()`'s `extra` param is back to `Product | None`. The generic-slot pattern stays: a future country's type just needs to fit `extra` the same way `Product` does.
+
 ### Changed (breaking)
 - SDK became a thin HTTP client of invoice-api — no longer talks directly to SEFAZ/ADN. All the protocol work (NFe/NFSe, XSD, signing) moved there.
 - `Invoice.issue()` now takes a handful of business fields (`client_name`, `tax_id`, `description`, `amount`, `address`) instead of a full technical document (`NFeDoc`/`DPS`).
