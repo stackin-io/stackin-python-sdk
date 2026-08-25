@@ -1,17 +1,17 @@
 # Changelog — invoice (SDK)
 
-## Não lançado
+## Unreleased
 
-### Alterado (breaking)
-- SDK virou um client HTTP fino do `invoice-api` — não fala mais direto com SEFAZ/ADN. Todo o protocolo (NFe/nfse, XSD, assinatura) migrou pra lá.
-- `Invoice.issue()` agora recebe poucos campos de negócio (`client_name`, `tax_id`, `description`, `amount`, `address`) em vez de um documento técnico completo (`NFeDoc`/`DPS`).
-- `Address` (pydantic) substitui os parâmetros soltos `state`/`municipality_code` — `address.state` alimenta NF-e, `address.city_code` alimenta NFS-e; todo o resto é opcional.
-- Todos os nomes de campo em inglês (`client_name`, `tax_id`, `reason`...).
+### Changed (breaking)
+- SDK became a thin HTTP client of invoice-api — no longer talks directly to SEFAZ/ADN. All the protocol work (NFe/NFSe, XSD, signing) moved there.
+- `Invoice.issue()` now takes a handful of business fields (`client_name`, `tax_id`, `description`, `amount`, `address`) instead of a full technical document (`NFeDoc`/`DPS`).
+- `Address` (pydantic) replaces the loose `state`/`municipality_code` params — `address.state` feeds NFE, `address.city_code` feeds NFSE; everything else is optional.
+- All field names in English (`client_name`, `tax_id`, `reason`...).
 
-### Removido
-- `nfe`/`nfse` (clients SOAP/REST completos), `schemas/nfse_servico.py`, `nfse_valores.py`, `nfse_pessoa.py`, `nfe_pessoa.py` (schemas 100% fiéis ao XSD) — todos moveram pra `invoice-api/app/providers/`.
-- Dependência de certificado/`Config` do lado do cliente.
+### Removed
+- `nfe`/`nfse` (full SOAP/REST clients), `schemas/nfse_servico.py`, `nfse_valores.py`, `nfse_pessoa.py`, `nfe_pessoa.py` (schemas fully matching the official XSD) — all moved to `invoice-api/app/providers/`.
+- Client-side certificate/`Config` dependency.
 
-### Adicionado
-- `InvalidDocumentError` → depois removido de novo junto com a validação de schema (não se aplica mais, sem documento técnico no SDK).
-- `ConnectionFailedError` tratado corretamente mesmo quando a API responde corpo não-JSON no erro (antes explodia com `JSONDecodeError` cru).
+### Added
+- `InvalidDocumentError` → later removed again along with the schema validation (no longer applicable, no technical document in the SDK anymore).
+- `ConnectionFailedError` now handled correctly even when the API responds with a non-JSON error body (used to blow up with a raw `JSONDecodeError`).
