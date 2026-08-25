@@ -112,10 +112,11 @@ class Invoice:
                 set; NFSE ignores this entirely (a service has none
                 of that).
             recipient_address (Address | None): NFE only, optional —
-                only `.state` is read, determines `idDest`
-                (1-internal/2-interstate in the resulting NFe).
-                Without it, idDest is always 1 — wrong for interstate
-                sales.
+                only `.state` is read, determines `idDest`: internal
+                if it matches the issuer's own state (or is unset),
+                interstate if it's a different UF, foreign if it's
+                the literal `"EX"` (the standard `TUf` value for a
+                foreign recipient).
 
         Returns:
             dict: The authorizer's response (via invoice-api), already
