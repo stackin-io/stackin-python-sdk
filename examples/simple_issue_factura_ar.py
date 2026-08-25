@@ -28,7 +28,7 @@ def main():
             tax_id="12345678901",
             description="Test product",
             amount=100.00,
-            address=Address(),
+            issuer_address=Address(),
             extra=InvoiceDocument(
                 invoice_class=InvoiceClass.B,
                 point_of_sale=1,

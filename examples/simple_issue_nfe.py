@@ -2,9 +2,11 @@
 """Minimal NFE issuance — every field here is required by
 invoice-api for document_type=NFE:
 
-- address.state: resolves the issuing UF's authorizer.
+- issuer_address.state: issuer's UF, resolves the SEFAZ/UF authorizer.
 - product.ncm/product.cfop: required XSD fields (tax classification/
   operation code), no NFE-valid default exists for either.
+- recipient_address.state: optional, but sets idDest correctly
+  (interstate vs internal) — omitting it always produces idDest=1.
 
 Everything else (issuer data, access key, XML-DSig signature, tax
 totals) is resolved server-side — see invoice-api/README.md."""
@@ -29,8 +31,9 @@ def main():
             tax_id="11111111111111",
             description="Test product",
             amount=100.00,
-            address=Address(state="SP"),
             extra=Product(ncm="84713012", cfop="5102"),
+            issuer_address=Address(state="SP"),
+            recipient_address=Address(state="RJ"),
         )
     except ConnectionFailedError:
         print("invoice-api is not running on localhost:8000")

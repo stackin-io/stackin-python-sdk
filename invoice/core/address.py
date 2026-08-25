@@ -7,7 +7,13 @@ from pydantic import BaseModel, Field
 
 class Address(BaseModel):
     """
-    Customer's address.
+    Picks an authorizer/routing target for `issue()` — despite the
+    name, only `state`/`city_code` are read; the rest of the fields
+    aren't sent anywhere yet. Used twice, with different meanings:
+    `address` (the issuer's own UF/city — not the issuer's real
+    address either, that comes from invoice-api's own config) and
+    `recipient_address` (the actual customer's state, used for
+    `idDest`).
 
     `issue()` only reads `state` (NFE) or `city_code` (NFSE) from
     this — everything else is optional, fill in only what you have.

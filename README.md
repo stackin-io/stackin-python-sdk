@@ -18,7 +18,7 @@ invoice = client.issue(
     tax_id="00000000000",
     description="Software development",
     amount=5000.00,
-    address=Address(city_code="4106902"),   # IBGE code, required for NFSE
+    issuer_address=Address(city_code="4106902"),   # IBGE code, required for NFSE
 )
 
 status = client.consult("ACCESS_KEY...", document_type=DocumentType.NFSE)
@@ -28,20 +28,22 @@ client.cancel(
     reason="Typo",
 )
 
-# NFE reads state from address.state instead of address.city_code,
-# and requires a Product in the extra slot (NCM/CFOP — Brazil-specific, NFSE has none of this):
+# NFE reads issuer_address.state instead of issuer_address.city_code,
+# requires a Product in the extra slot (NCM/CFOP — Brazil-specific, NFSE has none of this),
+# and optionally recipient_address.state to get idDest right on interstate sales:
 client.issue(
     document_type=DocumentType.NFE,
     client_name="Buyer Company Ltd",
     tax_id="11111111111111",
     description="Test product",
     amount=100.00,
-    address=Address(state="SP"),
+    issuer_address=Address(state="SP"),
     extra=Product(ncm="84713012", cfop="5102"),
+    recipient_address=Address(state="RJ"),
 )
 ```
 
-`Address` only requires the field `document_type` actually needs (`state` for NFE, `city_code` for NFSE, nothing for FACTURA) — everything else (`street`, `number`, `neighborhood`, `city`, `zip_code`) is optional, fill in only what you have.
+`issuer_address`/`recipient_address` are both `Address`, but despite the name only `.state`/`.city_code` are read — the rest of the fields aren't sent anywhere yet. `issuer_address` picks which authorizer invoice-api calls (the issuer's own UF/city, not a real address — the issuer's full address comes from invoice-api's own config); `recipient_address` is the actual customer's state, used only to set `idDest` (interstate vs internal) on NFE. Neither requires more than the one field `document_type` actually needs.
 
 `extra` accepts `Product` (`invoice.br`) for NFE — required, with `ncm`/`cfop` set — and is ignored for NFSE (a service isn't a physical good, no NCM/CFOP). `invoice.ar.InvoiceDocument` fits the same slot for `DocumentType.FACTURA` (Argentina) — wired end to end through invoice-api, but always returns a 400 today: `app/providers/ar/wsfe/` (WSAA/WSFEv1) has no confirmed host, see `invoice-api/plan/ARGENTINA.md`.
 
@@ -49,7 +51,7 @@ client.issue(
 
 - `invoice.APIError` — the API responded with a non-2xx status (`status_code`, `detail`).
 - `invoice.ConnectionFailedError` — the API didn't respond (network/DNS/timeout).
-- `ValueError` — `issue()` is missing a field its `document_type` needs (an address field, or `extra` set to the wrong type/incomplete for NFE/FACTURA).
+- `ValueError` — `issue()` is missing a field its `document_type` needs (`issuer_address.state`/`.city_code`, or `extra` set to the wrong type/incomplete for NFE/FACTURA).
 
 ## Structure
 

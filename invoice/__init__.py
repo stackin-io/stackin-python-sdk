@@ -1,6 +1,6 @@
 """Invoice __init__ module."""
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 __description__ = "🧾 Human Python SDK for invoice-api — issue, consult, cancel NF-e/NFS-e with a handful of fields."
 
 from .core.address import Address

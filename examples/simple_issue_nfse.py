@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Minimal NFSE issuance — the only NFSE-specific field
-invoice-api requires is address.city_code (IBGE code of where the
+invoice-api requires is issuer_address.city_code (IBGE code of where the
 service is provided, cLocPrestacao). No Product here — NCM/CFOP
 don't apply to a service.
 
@@ -27,7 +27,7 @@ def main():
             tax_id="00000000000",
             description="Software development",
             amount=5000.00,
-            address=Address(city_code="4106902"),
+            issuer_address=Address(city_code="4106902"),
         )
     except ConnectionFailedError:
         print("invoice-api is not running on localhost:8000")

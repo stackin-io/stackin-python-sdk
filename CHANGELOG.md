@@ -1,5 +1,13 @@
 # Changelog — invoice (SDK)
 
+## 0.7.0
+
+### Added
+- `issue()`'s `recipient_address: Address | None` — sets NFe's `idDest` (interstate vs internal) correctly. Without it, idDest was always 1, wrong for interstate sales.
+
+### Changed (breaking)
+- `issue()`'s `address` param renamed to `issuer_address` — same `Address` type, but the old name implied it was the recipient's address when it's actually used to pick the issuer's own authorizer (UF/city). `recipient_address` is the actual customer's state now.
+
 ## 0.6.0
 
 ### Added

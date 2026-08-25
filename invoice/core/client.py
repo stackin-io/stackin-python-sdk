@@ -29,7 +29,7 @@ class Invoice:
                 tax_id="00000000000",
                 description="Test product",
                 amount=100.00,
-                address=Address(state="PR"),
+                issuer_address=Address(state="PR"),
             )
 
             status = client.consult(
@@ -77,8 +77,9 @@ class Invoice:
         tax_id: str,
         description: str,
         amount: float,
-        address: Address,
+        issuer_address: Address,
         extra: Product | InvoiceDocument | None = None,
+        recipient_address: Address | None = None,
     ) -> dict:
         """
         Issues a fiscal document. `POST /api/v1/invoices`.
@@ -101,23 +102,31 @@ class Invoice:
             tax_id (str): Customer's CPF/CNPJ, digits only.
             description (str): Service/product description.
             amount (float): Total amount.
-            address (Address): Customer's address — `address.state`
-                is required for NFE, `address.city_code` for NFSE
-                (no separate `state`/`city_code` args).
+            issuer_address (Address): `.state` (NFE) or `.city_code`
+                (NFSE) picks the issuer's own authorizer — only those
+                two fields are read, nothing else in `Address` is
+                sent anywhere yet. Use `recipient_address` for the
+                actual customer.
             extra (Product | InvoiceDocument | None): Country-specific
                 data. For NFE, requires a `Product` with `ncm`/`cfop`
                 set; NFSE ignores this entirely (a service has none
                 of that).
+            recipient_address (Address | None): NFE only, optional —
+                only `.state` is read, determines `idDest`
+                (1-internal/2-interstate in the resulting NFe).
+                Without it, idDest is always 1 — wrong for interstate
+                sales.
 
         Returns:
             dict: The authorizer's response (via invoice-api), already
                 unwrapped from the API's `{"result": ...}` envelope.
 
         Raises:
-            ValueError: if the field `document_type` needs from
-                `address` (`state` for NFE, `city_code` for NFSE)
-                wasn't set, or if `document_type` is NFE and `extra`
-                isn't a `Product` with `ncm`/`cfop` set.
+            ValueError: if `document_type` needs
+                `issuer_address.state` (NFE) or
+                `issuer_address.city_code` (NFSE) and it wasn't set,
+                or if `document_type` is NFE and `extra` isn't a
+                `Product` with `ncm`/`cfop` set.
         """
         if document_type is DocumentType.NFE:
             if not isinstance(extra, Product) or not extra.ncm:
@@ -144,33 +153,36 @@ class Invoice:
             "tax_id": tax_id,
             "description": description,
             "amount": amount,
-            "address": address.to_dict(),
         }
         if isinstance(extra, Product):
             payload["product"] = extra.to_dict()
         elif isinstance(extra, InvoiceDocument):
             payload["invoice_document"] = extra.to_dict()
-        payload.update(self._required_field(document_type, address))
+        if recipient_address and recipient_address.state:
+            payload["recipient_state"] = recipient_address.state
+        payload.update(self._required_field(document_type, issuer_address))
 
         return self._request("POST", "/invoices", json=payload)
 
     @staticmethod
-    def _required_field(document_type: DocumentType, address: Address) -> dict:
-        """`state` (NFE) or `city_code` (NFSE) — whichever
-        `document_type` needs, read from `address`. FACTURA needs
+    def _required_field(
+        document_type: DocumentType, issuer_address: Address
+    ) -> dict:
+        """`issuer_address.state` (NFE) or `issuer_address.city_code`
+        (NFSE) — whichever `document_type` needs. FACTURA needs
         neither — the customer's document lives in `extra`
-        (`InvoiceDocument`), not `address`."""
+        (`InvoiceDocument`)."""
         if document_type is DocumentType.NFE:
-            if not address.state:
-                raise ValueError("address.state is required for NFE")
-            return {"state": address.state}
+            if not issuer_address.state:
+                raise ValueError("issuer_address.state is required for NFE")
+            return {"state": issuer_address.state}
 
         if document_type is DocumentType.FACTURA:
             return {}
 
-        if not address.city_code:
-            raise ValueError("address.city_code is required for NFSE")
-        return {"city_code": address.city_code}
+        if not issuer_address.city_code:
+            raise ValueError("issuer_address.city_code is required for NFSE")
+        return {"city_code": issuer_address.city_code}
 
     def consult(
         self,
