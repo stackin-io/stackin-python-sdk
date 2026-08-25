@@ -1,4 +1,4 @@
-"""Product module."""
+"""Product module — Brazil-specific, see `invoice.core.br`."""
 
 from __future__ import annotations
 
@@ -7,8 +7,11 @@ from pydantic import BaseModel, Field
 
 class Product(BaseModel):
     """
-    Product/item details — NFE only, NFSE ignores this entirely (a
-    service has no NCM/CFOP/unit).
+    Product/item details for a Brazilian NFE — **not** a generic
+    "line item" concept. `ncm`/`cfop` are Brazilian tax classification
+    codes (Receita Federal's NCM table, SINIEF's CFOP table) with no
+    equivalent in NFSE or in any other country's fiscal documents —
+    don't reuse this class outside a Brazil/NFE context.
 
     `issue()` requires `ncm` and `cfop` when `document_type` is NFE.
 

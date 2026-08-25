@@ -5,8 +5,8 @@ from __future__ import annotations
 import requests
 
 from invoice.core.address import Address
+from invoice.core.br.product import Product
 from invoice.core.exceptions import APIError, ConnectionFailedError
-from invoice.core.product import Product
 from invoice.core.types import DocumentType
 
 

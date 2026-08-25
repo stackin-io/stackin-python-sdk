@@ -1,5 +1,14 @@
 # Changelog — invoice (SDK)
 
+## 0.5.0
+
+### Added
+- `Product` (pydantic) — `ncm`/`cfop`/`unit`/`quantity`, required for NFE (`product.ncm`/`product.cfop`), ignored for NFSE. Mirrors `Address`'s pattern instead of loose params on `issue()`.
+- `examples/simple_issue_nfse.py` now catches `APIError` too, consistent with the NFE example.
+
+### Changed
+- `issue()`/`consult()`/`cancel()` now unwrap invoice-api's `{"result": ...}` envelope — callers get the authorizer's payload directly, not a nested dict.
+
 ## Unreleased
 
 ### Changed (breaking)
