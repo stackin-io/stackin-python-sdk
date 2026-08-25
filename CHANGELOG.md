@@ -1,5 +1,14 @@
 # Changelog — invoice (SDK)
 
+## 0.6.0
+
+### Added
+- `DocumentType.FACTURA` — Argentina/WSFEv1, wired through `issue()` end to end. Always fails against invoice-api today (`app/providers/ar/wsfe/` has no confirmed WSAA/WSFEv1 host), but the call reaches the API and gets a real 400, not a client-side dead end.
+- `invoice.ar.InvoiceDocument`/`InvoiceClass` — comprobante metadata (class, point of sale, customer document) for FACTURA.
+
+### Changed (breaking)
+- `issue()`'s `product` param renamed to `extra: Product | InvoiceDocument | None` — one generic slot for country-specific data instead of a Brazil-named parameter. `Product` still goes there for NFE; `InvoiceDocument` now does too, for FACTURA.
+
 ## 0.5.0
 
 ### Added

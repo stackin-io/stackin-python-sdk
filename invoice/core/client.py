@@ -78,17 +78,21 @@ class Invoice:
         description: str,
         amount: float,
         address: Address,
-        document: Product | InvoiceDocument | None = None,
+        extra: Product | InvoiceDocument | None = None,
     ) -> dict:
         """
         Issues a fiscal document. `POST /api/v1/invoices`.
 
         One slot for whatever the issuing country needs beyond the
-        universal business fields — `Product` (`invoice.br`) for
-        Brazil's NFE, `InvoiceDocument` (`invoice.ar`) for Argentina's
-        WSFEv1 (not wired server-side yet, see `invoice.ar`'s
-        docstring). Adding a country doesn't add a new parameter here,
-        just a new type this slot accepts.
+        universal business fields — `Product` (`invoice.br`, item
+        data — NCM/CFOP/unit/quantity) for Brazil's NFE,
+        `InvoiceDocument` (`invoice.ar`, comprobante metadata — class/
+        point of sale/customer document) for Argentina's WSFEv1 (not
+        wired server-side yet, see `invoice.ar`'s docstring). Neither
+        is literally "the document" — the name is deliberately
+        neutral since what goes here differs by country. Adding a
+        country doesn't add a new parameter here, just a new type
+        this slot accepts.
 
         Args:
             document_type (DocumentType): NFE or NFSE.
@@ -100,10 +104,10 @@ class Invoice:
             address (Address): Customer's address — `address.state`
                 is required for NFE, `address.city_code` for NFSE
                 (no separate `state`/`city_code` args).
-            document (Product | InvoiceDocument | None): Country-
-                specific document data. For NFE, requires a `Product`
-                with `ncm`/`cfop` set; NFSE ignores this entirely (a
-                service has none of that).
+            extra (Product | InvoiceDocument | None): Country-specific
+                data. For NFE, requires a `Product` with `ncm`/`cfop`
+                set; NFSE ignores this entirely (a service has none
+                of that).
 
         Returns:
             dict: The authorizer's response (via invoice-api), already
@@ -112,14 +116,27 @@ class Invoice:
         Raises:
             ValueError: if the field `document_type` needs from
                 `address` (`state` for NFE, `city_code` for NFSE)
-                wasn't set, or if `document_type` is NFE and `document`
+                wasn't set, or if `document_type` is NFE and `extra`
                 isn't a `Product` with `ncm`/`cfop` set.
         """
         if document_type is DocumentType.NFE:
-            if not isinstance(document, Product) or not document.ncm:
-                raise ValueError("document must be a Product with ncm set for NFE")
-            if not document.cfop:
-                raise ValueError("document.cfop is required for NFE")
+            if not isinstance(extra, Product) or not extra.ncm:
+                raise ValueError("extra must be a Product with ncm set for NFE")
+            if not extra.cfop:
+                raise ValueError("extra.cfop is required for NFE")
+        elif document_type is DocumentType.FACTURA:
+            if (
+                not isinstance(extra, InvoiceDocument)
+                or extra.invoice_class is None
+                or extra.point_of_sale is None
+                or not extra.customer_document
+                or not extra.document_type
+            ):
+                raise ValueError(
+                    "extra must be an InvoiceDocument with invoice_class, "
+                    "point_of_sale, customer_document and document_type "
+                    "set for FACTURA"
+                )
 
         payload = {
             "document_type": document_type.value,
@@ -129,8 +146,10 @@ class Invoice:
             "amount": amount,
             "address": address.to_dict(),
         }
-        if isinstance(document, Product):
-            payload["product"] = document.to_dict()
+        if isinstance(extra, Product):
+            payload["product"] = extra.to_dict()
+        elif isinstance(extra, InvoiceDocument):
+            payload["invoice_document"] = extra.to_dict()
         payload.update(self._required_field(document_type, address))
 
         return self._request("POST", "/invoices", json=payload)
@@ -138,11 +157,16 @@ class Invoice:
     @staticmethod
     def _required_field(document_type: DocumentType, address: Address) -> dict:
         """`state` (NFE) or `city_code` (NFSE) — whichever
-        `document_type` needs, read from `address`."""
+        `document_type` needs, read from `address`. FACTURA needs
+        neither — the customer's document lives in `extra`
+        (`InvoiceDocument`), not `address`."""
         if document_type is DocumentType.NFE:
             if not address.state:
                 raise ValueError("address.state is required for NFE")
             return {"state": address.state}
+
+        if document_type is DocumentType.FACTURA:
+            return {}
 
         if not address.city_code:
             raise ValueError("address.city_code is required for NFSE")

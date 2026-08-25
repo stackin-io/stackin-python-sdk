@@ -6,10 +6,12 @@ from enum import Enum
 
 
 class DocumentType(str, Enum):
-    """Fiscal document type to issue/consult/cancel — both Brazilian
-    (NFE via SEFAZ/UF, NFSE via the national ADN). Doubles as the
-    jurisdiction selector today since only Brazil is implemented on
-    the API side (`app/providers/br/`)."""
+    """Fiscal document type to issue/consult/cancel. Doubles as the
+    jurisdiction selector: NFE/NFSE are Brazilian (SEFAZ/UF, national
+    ADN); FACTURA is Argentina's WSFEv1 — wired end to end but always
+    fails today (no confirmed WSAA/WSFEv1 host, see
+    invoice-api/plan/ARGENTINA.md)."""
 
     NFE = "nfe"
     NFSE = "nfse"
+    FACTURA = "factura"
