@@ -88,6 +88,7 @@ class ProductCatalog:
             amount=150.00,
             ncm="87141000",
             cfop="5102",
+            cest="0100100",
             ind_escala="N",
             manufacturer_cnpj="12345678000199",
         )
