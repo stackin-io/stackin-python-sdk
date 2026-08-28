@@ -76,7 +76,7 @@ class ProductCatalog:
             cest="0300700",
             tax_benefit_code="PR820001",
             presumed_credits=[
-                PresumedCredit(code="PR001", percentage=3.0, amount=2.40),
+                PresumedCredit(code="PR820001", percentage=3.0, amount=2.40),
             ],
         )
 
@@ -138,7 +138,7 @@ class ProductCatalog:
             ncm="85171231",
             cfop="5102",
             ex_tipi="01",
-            import_content_control_number="1234567890123",
+            import_content_control_number="550E8400-E29B-41D4-A716-446655440000",
         )
 
     @staticmethod
@@ -158,7 +158,7 @@ class ProductCatalog:
             manufacturer_cnpj="12345678000199",
             tax_benefit_code="PR820001",
             presumed_credits=[
-                PresumedCredit(code="PR001", percentage=3.0, amount=30.00),
+                PresumedCredit(code="PR820001", percentage=3.0, amount=30.00),
             ],
             ex_tipi="01",
             freight=20.00,
@@ -168,8 +168,8 @@ class ProductCatalog:
             used_movable_asset=False,
             purchase_order="PC-2026-00042",
             purchase_order_item="1",
-            import_content_control_number="1234567890123",
-            recopi_number="00012345",
+            import_content_control_number="550E8400-E29B-41D4-A716-446655440000",
+            recopi_number="00000000000012345678",
             extra_groups={},
         )
 
