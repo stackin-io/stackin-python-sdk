@@ -3,8 +3,14 @@
 "NFe Homologacao Test" company (SC/SVRS) created for this test —
 see invoice_api/app/core/database (Company 786e6800-8cad-4fa6-b5b0-
 d0fe52fa0c28). Before running: fill in that company's Certificate
-(.pfx path + password) via the console UI — nothing else to set up.
+(.pfx path + password) via the console UI, and set NFE_TEST_API_KEY
+to a token generated from that company's API Tokens page — nothing
+else to set up.
 """
+
+import os
+
+from dotenv import load_dotenv
 
 from invoice import (
     Address,
@@ -15,11 +21,13 @@ from invoice import (
 )
 from invoice.br import Product
 
+load_dotenv()
+
 
 def main():
     client = Invoice(
         base_url="http://localhost:8000",
-        api_key="***REMOVED***",
+        api_key=os.environ.get("NFE_TEST_API_KEY")
     )
 
     try:
@@ -27,9 +35,14 @@ def main():
             document_type=DocumentType.NFE,
             client_name="Comprador Teste Ltda",
             tax_id="11222333000181",
-            description="Produto de teste - homologacao",
-            amount=100.00,
-            extra=Product(ncm="84713012", cfop="5102"),
+            items=[
+                Product(
+                    description="Produto de teste - homologacao",
+                    amount=100.00,
+                    ncm="84713012",
+                    cfop="5102",
+                )
+            ],
             recipient_address=Address(state="SC"),
         )
     except ConnectionFailedError:

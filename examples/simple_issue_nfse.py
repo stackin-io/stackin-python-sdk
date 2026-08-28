@@ -14,6 +14,7 @@ from invoice import (
     DocumentType,
     Invoice,
 )
+from invoice.br import Product
 
 
 def main():
@@ -27,8 +28,7 @@ def main():
             document_type=DocumentType.NFSE,
             client_name="John Doe",
             tax_id="00000000000",
-            description="Software development",
-            amount=5000.00,
+            items=[Product(description="Software development", amount=5000.00)],
         )
     except ConnectionFailedError:
         print("invoice-api is not running on localhost:8000")

@@ -4,7 +4,8 @@ invoice-api for document_type=NFE:
 
 - api_key: the issuing company's key (POST /api/v1/companies) —
   invoice-api resolves the issuer's UF/address/certificate from it.
-- product.ncm/product.cfop: required XSD fields (tax classification/
+- items: always a list, one Product even for a single item.
+- Product.ncm/Product.cfop: required XSD fields (tax classification/
   operation code), no NFE-valid default exists for either.
 - recipient_address.state: optional, but sets idDest correctly
   (interstate vs internal) — omitting it always produces idDest=1.
@@ -33,9 +34,7 @@ def main():
             document_type=DocumentType.NFE,
             client_name="Buyer Company Ltd",
             tax_id="11111111111111",
-            description="Test product",
-            amount=100.00,
-            extra=Product(ncm="84713012", cfop="5102"),
+            items=[Product(description="Test product", amount=100.00, ncm="84713012", cfop="5102")],
             recipient_address=Address(state="RJ"),
         )
     except ConnectionFailedError:

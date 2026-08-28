@@ -26,8 +26,10 @@ class Invoice:
                 document_type=DocumentType.NFE,
                 client_name="John Doe",
                 tax_id="00000000000",
-                description="Test product",
-                amount=100.00,
+                items=[
+                    Product(description="Widget", amount=50.00, ncm="84713012", cfop="5102"),
+                    Product(description="Gadget", amount=30.00, ncm="84713012", cfop="5102"),
+                ],
             )
 
             status = client.consult(
@@ -75,21 +77,18 @@ class Invoice:
         document_type: DocumentType,
         client_name: str,
         tax_id: str,
-        description: str,
-        amount: float,
-        extra: Product | None = None,
+        items: list[Product],
         recipient_address: Address | None = None,
     ) -> dict:
         """
         Issues a fiscal document. `POST /api/v1/invoices`.
 
-        One slot for whatever the issuing country needs beyond the
-        universal business fields — `Product` (`invoice.br`, item
-        data — NCM/CFOP/unit/quantity) for Brazil's NFE. Not literally
-        "the document" — the name is deliberately neutral since what
-        goes here differs by country. Adding a country doesn't add a
-        new parameter here, just a new type this slot accepts (see
-        `invoice.br.Product` for the shape a country's type follows).
+        `items` is always a list, one entry even for a single product/
+        service — each `Product` (`invoice.br`) carries its own
+        description/amount plus NCM/CFOP/unit/quantity/... . NFe
+        emits one `det` per item; NFSe (a single service) only ever
+        uses the first (its description/amount — NFSe has no
+        NCM/CFOP).
 
         The issuer (CNPJ, address, state, certificate, environment)
         isn't a parameter here — invoice-api resolves it entirely
@@ -101,11 +100,7 @@ class Invoice:
             client_name (str): Customer's name/company name (service
                 taker or goods recipient).
             tax_id (str): Customer's CPF/CNPJ, digits only.
-            description (str): Service/product description.
-            amount (float): Total amount.
-            extra (Product | None): Country-specific data. For NFE,
-                requires a `Product` with `ncm`/`cfop` set; NFSE
-                ignores this entirely (a service has none of that).
+            items (list[Product]): One or more line items.
             recipient_address (Address | None): NFE only, optional —
                 only `.state` is read, determines `idDest`: internal
                 if it matches the issuer's own state (or is unset),
@@ -118,24 +113,25 @@ class Invoice:
                 unwrapped from the API's `{"result": ...}` envelope.
 
         Raises:
-            ValueError: if `document_type` is NFE and `extra` isn't a
-                `Product` with `ncm`/`cfop` set.
+            ValueError: if `items` is empty, or if `document_type` is
+                NFE and an item doesn't have `ncm`/`cfop` set.
         """
+        if not items:
+            raise ValueError("items can't be empty")
+
         if document_type is DocumentType.NFE:
-            if not isinstance(extra, Product) or not extra.ncm:
-                raise ValueError("extra must be a Product with ncm set for NFE")
-            if not extra.cfop:
-                raise ValueError("extra.cfop is required for NFE")
+            for index, item in enumerate(items):
+                if not item.ncm:
+                    raise ValueError(f"items[{index}].ncm is required for NFE")
+                if not item.cfop:
+                    raise ValueError(f"items[{index}].cfop is required for NFE")
 
         payload = {
             "document_type": document_type.value,
             "client_name": client_name,
             "tax_id": tax_id,
-            "description": description,
-            "amount": amount,
+            "items": [item.to_dict() for item in items],
         }
-        if isinstance(extra, Product):
-            payload["product"] = extra.to_dict()
         if recipient_address and recipient_address.state:
             payload["recipient_state"] = recipient_address.state
 

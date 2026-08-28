@@ -5,6 +5,6 @@ meaning outside Brazil (NCM, CFOP, etc). Import from here, not from
     from invoice.br import Product
 """
 
-from invoice.core.br.product import Product
+from invoice.core.br.product import PresumedCredit, Product
 
-__all__ = ["Product"]
+__all__ = ["Product", "PresumedCredit"]
