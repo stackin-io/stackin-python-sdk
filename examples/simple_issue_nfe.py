@@ -177,7 +177,7 @@ class ProductCatalog:
         """ICMS CST 40 — exempt operation, no base/rate/value needed."""
         return Product(
             description="Rosa Holambra Vermelha",
-            amount=18.74,
+            amount=112.44,
             ncm="06031100",
             cfop="6108",
             quantity=6,
