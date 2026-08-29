@@ -23,6 +23,42 @@ from invoice.br import Product
 load_dotenv()
 
 
+class ServiceCatalog:
+    """Builds Product examples for NFSE — only description/amount are
+    used (invoice-api reads nothing else off the item for a service)."""
+
+    @staticmethod
+    def software_development():
+        """A single development service."""
+        return Product(description="Software development", amount=5000.00)
+
+    @staticmethod
+    def consulting():
+        """A consulting service."""
+        return Product(description="Technical consulting - 10 hours", amount=1500.00)
+
+    @staticmethod
+    def monthly_support():
+        """A recurring support/maintenance service."""
+        return Product(description="Monthly support and maintenance", amount=800.00)
+
+    @staticmethod
+    def design():
+        """A design service."""
+        return Product(description="UI/UX design", amount=3200.00)
+
+    @classmethod
+    def all(cls):
+        """One instance of every service variant above — issue() only
+        uses the first for NFSE, the rest are here for reference."""
+        return [
+            cls.software_development(),
+            cls.consulting(),
+            cls.monthly_support(),
+            cls.design(),
+        ]
+
+
 def main():
     client = Invoice(
         base_url="http://localhost:8000",
@@ -34,7 +70,7 @@ def main():
             document_type=DocumentType.NFSE,
             client_name="John Doe",
             tax_id="00000000000",
-            items=[Product(description="Software development", amount=5000.00)],
+            items=ServiceCatalog.all(),
         )
     except ConnectionFailedError:
         print("invoice-api is not running on localhost:8000")
