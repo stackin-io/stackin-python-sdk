@@ -143,6 +143,89 @@ class ProductCatalog:
         )
 
     @staticmethod
+    def taxed_icms():
+        """Real computed ICMS/PIS/COFINS instead of the no-tax-due default."""
+        return Product(
+            description="Plastico celofane 50x50",
+            amount=0.27,
+            ncm="39202019",
+            cfop="6108",
+            freight=0.03,
+            tax={
+                "ICMS": {
+                    "ICMS00": {
+                        "orig": "0",
+                        "CST": "00",
+                        "modBC": "3",
+                        "vBC": "0.30",
+                        "pICMS": "12.0000",
+                        "vICMS": "0.04",
+                    }
+                },
+                "PIS": {
+                    "PISAliq": {
+                        "CST": "01",
+                        "vBC": "0.30",
+                        "pPIS": "0.6500",
+                        "vPIS": "0.00",
+                    }
+                },
+                "COFINS": {
+                    "COFINSAliq": {
+                        "CST": "01",
+                        "vBC": "0.30",
+                        "pCOFINS": "3.0000",
+                        "vCOFINS": "0.01",
+                    }
+                },
+            },
+        )
+
+    @staticmethod
+    def icms_isento():
+        """ICMS CST 40 — exempt operation, no base/rate/value needed."""
+        return Product(
+            description="Rosa Holambra Vermelha",
+            amount=18.74,
+            ncm="06031100",
+            cfop="6108",
+            quantity=6,
+            freight=11.05,
+            tax={"ICMS": {"ICMS40": {"orig": "0", "CST": "40"}}},
+        )
+
+    @staticmethod
+    def interstate_with_icms_dest():
+        """Interstate sale — ICMS split between origin and destination UF."""
+        return Product(
+            description="Urso de Pelucia Dudu",
+            amount=92.72,
+            ncm="95030031",
+            cfop="6108",
+            freight=9.12,
+            tax={
+                "ICMS": {
+                    "ICMS00": {
+                        "orig": "0",
+                        "CST": "00",
+                        "modBC": "3",
+                        "vBC": "101.84",
+                        "pICMS": "12.0000",
+                        "vICMS": "12.22",
+                    }
+                },
+                "ICMSUFDest": {
+                    "vBCUFDest": "101.84",
+                    "pICMSUFDest": "17.0000",
+                    "pICMSInter": "12.0000",
+                    "pICMSInterPart": "100.0000",
+                    "vICMSUFDest": "5.09",
+                    "vICMSUFRemet": "0.00",
+                },
+            },
+        )
+
+    @staticmethod
     def full():
         """Every field on Product filled in at once."""
         return Product(
@@ -187,6 +270,9 @@ class ProductCatalog:
             cls.used_asset(),
             cls.with_purchase_order(),
             cls.imported(),
+            cls.taxed_icms(),
+            cls.icms_isento(),
+            cls.interstate_with_icms_dest(),
             cls.full(),
         ]
 
