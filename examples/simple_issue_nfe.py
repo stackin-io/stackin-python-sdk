@@ -24,7 +24,16 @@ from invoice import (
     DocumentType,
     Invoice,
 )
-from invoice.br import PresumedCredit, Product
+from invoice.br import (
+    CofinsAliq,
+    Icms00,
+    Icms40,
+    IcmsUfDest,
+    PisAliq,
+    PresumedCredit,
+    Product,
+    Tax,
+)
 
 load_dotenv()
 
@@ -151,34 +160,16 @@ class ProductCatalog:
             ncm="39202019",
             cfop="6108",
             freight=0.03,
-            tax={
-                "ICMS": {
-                    "ICMS00": {
-                        "orig": "0",
-                        "CST": "00",
-                        "modBC": "3",
-                        "vBC": "0.30",
-                        "pICMS": "12.0000",
-                        "vICMS": "0.04",
-                    }
-                },
-                "PIS": {
-                    "PISAliq": {
-                        "CST": "01",
-                        "vBC": "0.30",
-                        "pPIS": "0.6500",
-                        "vPIS": "0.00",
-                    }
-                },
-                "COFINS": {
-                    "COFINSAliq": {
-                        "CST": "01",
-                        "vBC": "0.30",
-                        "pCOFINS": "3.0000",
-                        "vCOFINS": "0.01",
-                    }
-                },
-            },
+            tax=Tax(
+                icms=Icms00(
+                    orig="0", cst="00", mod_bc="3", v_bc="0.30",
+                    p_icms="12.0000", v_icms="0.04",
+                ),
+                pis=PisAliq(cst="01", v_bc="0.30", p_pis="0.6500", v_pis="0.00"),
+                cofins=CofinsAliq(
+                    cst="01", v_bc="0.30", p_cofins="3.0000", v_cofins="0.01"
+                ),
+            ),
         )
 
     @staticmethod
@@ -191,7 +182,7 @@ class ProductCatalog:
             cfop="6108",
             quantity=6,
             freight=11.05,
-            tax={"ICMS": {"ICMS40": {"orig": "0", "CST": "40"}}},
+            tax=Tax(icms=Icms40(orig="0", cst="40")),
         )
 
     @staticmethod
@@ -203,26 +194,17 @@ class ProductCatalog:
             ncm="95030031",
             cfop="6108",
             freight=9.12,
-            tax={
-                "ICMS": {
-                    "ICMS00": {
-                        "orig": "0",
-                        "CST": "00",
-                        "modBC": "3",
-                        "vBC": "101.84",
-                        "pICMS": "12.0000",
-                        "vICMS": "12.22",
-                    }
-                },
-                "ICMSUFDest": {
-                    "vBCUFDest": "101.84",
-                    "pICMSUFDest": "17.0000",
-                    "pICMSInter": "12.0000",
-                    "pICMSInterPart": "100.0000",
-                    "vICMSUFDest": "5.09",
-                    "vICMSUFRemet": "0.00",
-                },
-            },
+            tax=Tax(
+                icms=Icms00(
+                    orig="0", cst="00", mod_bc="3", v_bc="101.84",
+                    p_icms="12.0000", v_icms="12.22",
+                ),
+                icms_uf_dest=IcmsUfDest(
+                    v_bc_uf_dest="101.84", p_icms_uf_dest="17.0000",
+                    p_icms_inter="12.0000", p_icms_inter_part="100.0000",
+                    v_icms_uf_dest="5.09", v_icms_uf_remet="0.00",
+                ),
+            ),
         )
 
     @staticmethod

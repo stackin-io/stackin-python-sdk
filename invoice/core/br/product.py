@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from invoice.core.br.tax import Tax
+
 
 class PresumedCredit(BaseModel):
     """`det/prod/gCred` — presumed ICMS credit / state tax benefit
@@ -74,7 +76,8 @@ class Product(BaseModel):
             det/prod's vertical-specific groups (DI, detExport,
             rastro, veicProd, med, arma, comb), keyed by their exact
             XSD tag name.
-        tax (dict[str, Any] | None): Passthrough for det/imposto.
+        tax (Tax | dict[str, Any] | None): This item's taxes — a
+            typed `Tax`, or a raw det/imposto passthrough dict.
     """
 
     description: str = Field(..., min_length=1)
@@ -101,12 +104,18 @@ class Product(BaseModel):
     import_content_control_number: str | None = Field(default=None)
     recopi_number: str | None = Field(default=None)
     extra_groups: dict[str, Any] | None = Field(default=None)
-    tax: dict[str, Any] | None = Field(default=None)
+    tax: Tax | dict[str, Any] | None = Field(default=None)
 
     def to_dict(self) -> dict:
         """Return the item as a plain dict, ready for the request
         body — `description`/`amount` at the top, everything else
         nested under `product` (invoice-api's `IssueRequest` shape).
         Fields left unset are omitted, not sent as null."""
-        data = self.model_dump(exclude_none=True, exclude={"description", "amount"})
+        data = self.model_dump(
+            exclude_none=True, exclude={"description", "amount", "tax"}
+        )
+        if isinstance(self.tax, Tax):
+            data["tax"] = self.tax.to_dict()
+        elif self.tax is not None:
+            data["tax"] = self.tax
         return {"description": self.description, "amount": self.amount, "product": data}
