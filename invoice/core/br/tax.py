@@ -35,6 +35,26 @@ class Icms40(BaseModel):
     mot_des_icms: str | None = Field(default=None, alias="motDesICMS")
 
 
+class Icms60(BaseModel):
+    """ICMS already charged by an earlier substitution."""
+
+    model_config = _CONFIG
+
+    orig: str
+    cst: str = Field(default="60", alias="CST")
+    v_bc_st_ret: str | None = Field(default=None, alias="vBCSTRet")
+    p_st: str | None = Field(default=None, alias="pST")
+    v_icms_substituto: str | None = Field(default=None, alias="vICMSSubstituto")
+    v_icms_st_ret: str | None = Field(default=None, alias="vICMSSTRet")
+    v_bc_fcp_st_ret: str | None = Field(default=None, alias="vBCFCPSTRet")
+    p_fcp_st_ret: str | None = Field(default=None, alias="pFCPSTRet")
+    v_fcp_st_ret: str | None = Field(default=None, alias="vFCPSTRet")
+    p_red_bc_efet: str | None = Field(default=None, alias="pRedBCEfet")
+    v_bc_efet: str | None = Field(default=None, alias="vBCEfet")
+    p_icms_efet: str | None = Field(default=None, alias="pICMSEfet")
+    v_icms_efet: str | None = Field(default=None, alias="vICMSEfet")
+
+
 class IcmsSn101(BaseModel):
     """Simples Nacional ICMS with a credit."""
 
@@ -171,13 +191,14 @@ class CofinsOutr(BaseModel):
     v_cofins: str = Field(alias="vCOFINS")
 
 
-IcmsGroup = Icms00 | Icms40 | IcmsSn101 | IcmsSn102 | dict[str, Any]
+IcmsGroup = Icms00 | Icms40 | Icms60 | IcmsSn101 | IcmsSn102 | dict[str, Any]
 PisGroup = PisAliq | PisNt | PisOutr | dict[str, Any]
 CofinsGroup = CofinsAliq | CofinsNt | CofinsOutr | dict[str, Any]
 
 _ICMS_TAGS = {
     Icms00: "ICMS00",
     Icms40: "ICMS40",
+    Icms60: "ICMS60",
     IcmsSn101: "ICMSSN101",
     IcmsSn102: "ICMSSN102",
 }
