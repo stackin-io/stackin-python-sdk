@@ -4,13 +4,18 @@ from invoice.core.br.product import PresumedCredit, Product
 from invoice.core.br.tax import (
     CofinsAliq,
     CofinsNt,
+    CofinsOutr,
     Icms00,
     Icms40,
     IcmsSn101,
     IcmsSn102,
     IcmsUfDest,
+    Ipi,
+    IpiNt,
+    IpiTrib,
     PisAliq,
     PisNt,
+    PisOutr,
     Tax,
 )
 
@@ -23,8 +28,13 @@ __all__ = [
     "IcmsSn101",
     "IcmsSn102",
     "IcmsUfDest",
+    "Ipi",
+    "IpiTrib",
+    "IpiNt",
     "PisAliq",
     "PisNt",
+    "PisOutr",
     "CofinsAliq",
     "CofinsNt",
+    "CofinsOutr",
 ]

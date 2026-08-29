@@ -71,6 +71,46 @@ class IcmsUfDest(BaseModel):
     v_icms_uf_remet: str = Field(alias="vICMSUFRemet")
 
 
+class IpiTrib(BaseModel):
+    """IPI taxed by rate."""
+
+    model_config = _CONFIG
+
+    cst: Literal["00", "49", "50", "99"] = Field(alias="CST")
+    v_bc: str | None = Field(default=None, alias="vBC")
+    p_ipi: str | None = Field(default=None, alias="pIPI")
+    q_unid: str | None = Field(default=None, alias="qUnid")
+    v_unid: str | None = Field(default=None, alias="vUnid")
+    v_ipi: str = Field(alias="vIPI")
+
+
+class IpiNt(BaseModel):
+    """IPI not taxed."""
+
+    model_config = _CONFIG
+
+    cst: str = Field(alias="CST")
+
+
+IpiVariant = IpiTrib | IpiNt | dict[str, Any]
+_IPI_TAGS = {IpiTrib: "IPITrib", IpiNt: "IPINT"}
+
+
+class Ipi(BaseModel):
+    """This item's IPI."""
+
+    model_config = _CONFIG
+
+    c_enq: str = Field(alias="cEnq")
+    trib: IpiVariant
+
+    def to_dict(self) -> dict:
+        """Returns the IPI group as a plain dict."""
+        data = {"cEnq": self.c_enq}
+        data.update(_wrap(self.trib, _IPI_TAGS))
+        return data
+
+
 class PisAliq(BaseModel):
     """PIS taxed by rate."""
 
@@ -88,6 +128,17 @@ class PisNt(BaseModel):
     model_config = _CONFIG
 
     cst: str = Field(alias="CST")
+
+
+class PisOutr(BaseModel):
+    """PIS taxed some other way."""
+
+    model_config = _CONFIG
+
+    cst: str = Field(alias="CST")
+    v_bc: str | None = Field(default=None, alias="vBC")
+    p_pis: str | None = Field(default=None, alias="pPIS")
+    v_pis: str = Field(alias="vPIS")
 
 
 class CofinsAliq(BaseModel):
@@ -109,9 +160,20 @@ class CofinsNt(BaseModel):
     cst: str = Field(alias="CST")
 
 
+class CofinsOutr(BaseModel):
+    """COFINS taxed some other way."""
+
+    model_config = _CONFIG
+
+    cst: str = Field(alias="CST")
+    v_bc: str | None = Field(default=None, alias="vBC")
+    p_cofins: str | None = Field(default=None, alias="pCOFINS")
+    v_cofins: str = Field(alias="vCOFINS")
+
+
 IcmsGroup = Icms00 | Icms40 | IcmsSn101 | IcmsSn102 | dict[str, Any]
-PisGroup = PisAliq | PisNt | dict[str, Any]
-CofinsGroup = CofinsAliq | CofinsNt | dict[str, Any]
+PisGroup = PisAliq | PisNt | PisOutr | dict[str, Any]
+CofinsGroup = CofinsAliq | CofinsNt | CofinsOutr | dict[str, Any]
 
 _ICMS_TAGS = {
     Icms00: "ICMS00",
@@ -119,34 +181,43 @@ _ICMS_TAGS = {
     IcmsSn101: "ICMSSN101",
     IcmsSn102: "ICMSSN102",
 }
-_PIS_TAGS = {PisAliq: "PISAliq", PisNt: "PISNT"}
-_COFINS_TAGS = {CofinsAliq: "COFINSAliq", CofinsNt: "COFINSNT"}
+_PIS_TAGS = {PisAliq: "PISAliq", PisNt: "PISNT", PisOutr: "PISOutr"}
+_COFINS_TAGS = {
+    CofinsAliq: "COFINSAliq",
+    CofinsNt: "COFINSNT",
+    CofinsOutr: "COFINSOutr",
+}
 
 
 class Tax(BaseModel):
     """This item's taxes, already computed by the caller."""
 
+    model_config = _CONFIG
+
+    v_tot_trib: str | None = Field(default=None, alias="vTotTrib")
     icms: IcmsGroup | None = None
     icms_uf_dest: IcmsUfDest | None = None
+    ipi: Ipi | dict[str, Any] | None = None
     pis: PisGroup | None = None
     cofins: CofinsGroup | None = None
-    ipi: dict[str, Any] | None = None
 
     def to_dict(self) -> dict:
         """Returns the taxes as a plain dict."""
         data: dict[str, Any] = {}
+        if self.v_tot_trib is not None:
+            data["vTotTrib"] = self.v_tot_trib
         if self.icms is not None:
             data["ICMS"] = _wrap(self.icms, _ICMS_TAGS)
         if self.icms_uf_dest is not None:
             data["ICMSUFDest"] = self.icms_uf_dest.model_dump(
                 by_alias=True, exclude_none=True
             )
+        if self.ipi is not None:
+            data["IPI"] = self.ipi.to_dict() if isinstance(self.ipi, Ipi) else self.ipi
         if self.pis is not None:
             data["PIS"] = _wrap(self.pis, _PIS_TAGS)
         if self.cofins is not None:
             data["COFINS"] = _wrap(self.cofins, _COFINS_TAGS)
-        if self.ipi is not None:
-            data["IPI"] = self.ipi
         return data
 
 
