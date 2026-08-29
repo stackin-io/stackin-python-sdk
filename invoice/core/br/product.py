@@ -74,6 +74,7 @@ class Product(BaseModel):
             det/prod's vertical-specific groups (DI, detExport,
             rastro, veicProd, med, arma, comb), keyed by their exact
             XSD tag name.
+        tax (dict[str, Any] | None): Passthrough for det/imposto.
     """
 
     description: str = Field(..., min_length=1)
@@ -100,6 +101,7 @@ class Product(BaseModel):
     import_content_control_number: str | None = Field(default=None)
     recopi_number: str | None = Field(default=None)
     extra_groups: dict[str, Any] | None = Field(default=None)
+    tax: dict[str, Any] | None = Field(default=None)
 
     def to_dict(self) -> dict:
         """Return the item as a plain dict, ready for the request
