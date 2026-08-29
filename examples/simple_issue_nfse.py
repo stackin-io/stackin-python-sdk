@@ -8,6 +8,10 @@ Note: NFSE's signature algorithm is genuinely unconfirmed (see
 plan/IMPLEMENTATION.md section 10), so this example is expected to
 get a 501 from invoice-api today, not a successful issuance."""
 
+import os
+
+from dotenv import load_dotenv
+
 from invoice import (
     APIError,
     ConnectionFailedError,
@@ -16,11 +20,13 @@ from invoice import (
 )
 from invoice.br import Product
 
+load_dotenv()
+
 
 def main():
     client = Invoice(
         base_url="http://localhost:8000",
-        api_key="COMPANY_API_KEY"
+        api_key=os.environ.get("NFE_TEST_API_KEY")
     )
 
     try:
