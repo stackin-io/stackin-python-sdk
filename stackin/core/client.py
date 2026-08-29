@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import requests
 
-from invoice.core.address import Address
-from invoice.core.br.product import Product
-from invoice.core.exceptions import APIError, ConnectionFailedError
-from invoice.core.types import DocumentType
+from stackin.core.address import Address
+from stackin.core.br.product import Product
+from stackin.core.exceptions import APIError, ConnectionFailedError
+from stackin.core.types import DocumentType
 
 
 class Invoice:

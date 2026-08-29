@@ -1,10 +1,10 @@
 [project]
-name = "invoice"
+name = "stackin"
 version = "0.1.0"
 authors = [
   { name = "Fernando Celmer", email = "email@fernandocelmer.com" },
 ]
-description = "🧾 SDK Python humano pro invoice-api (emitir/consultar/cancelar NF-e/NFS-e)."
+description = "🧾 SDK Python humano pro stackin-api (emitir/consultar/cancelar NF-e/NFS-e)."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -13,13 +13,13 @@ dependencies = [
 ]
 
 [tool.poetry]
-name = "invoice"
+name = "stackin"
 version = "0.1.0"
-description = "🧾 SDK Python humano pro invoice-api (emitir/consultar/cancelar NF-e/NFS-e)."
+description = "🧾 SDK Python humano pro stackin-api (emitir/consultar/cancelar NF-e/NFS-e)."
 authors = ["Fernando Celmer <email@fernandocelmer.com>"]
 readme = "README.md"
 package-mode = true
-packages = [{ include = "invoice" }]
+packages = [{ include = "stackin" }]
 
 [tool.poetry.dependencies]
 python = ">=3.10.0"

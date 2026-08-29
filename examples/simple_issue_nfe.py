@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """Minimal NFE issuance — every field here is required by
-invoice-api for document_type=NFE:
+stackin-api for document_type=NFE:
 
 - api_key: the issuing company's key (POST /api/v1/companies) —
-  invoice-api resolves the issuer's UF/address/certificate from it.
+  stackin-api resolves the issuer's UF/address/certificate from it.
 - items: always a list, one Product even for a single item.
 - Product.ncm/Product.cfop: required XSD fields (tax classification/
   operation code), no NFE-valid default exists for either.
@@ -11,20 +11,20 @@ invoice-api for document_type=NFE:
   (interstate vs internal) — omitting it always produces idDest=1.
 
 Everything else (issuer data, access key, XML-DSig signature, tax
-totals) is resolved server-side — see invoice-api/README.md."""
+totals) is resolved server-side — see stackin-api/README.md."""
 
 import os
 
 from dotenv import load_dotenv
 
-from invoice import (
+from stackin import (
     Address,
     APIError,
     ConnectionFailedError,
     DocumentType,
     Invoice,
 )
-from invoice.br import (
+from stackin.br import (
     CofinsAliq,
     Icms00,
     Icms40,
@@ -274,10 +274,10 @@ def main():
             recipient_address=Address(state="SC"),
         )
     except ConnectionFailedError:
-        print("invoice-api is not running on localhost:8000")
+        print("stackin-api is not running on localhost:8000")
         return None
     except APIError as error:
-        print(f"invoice-api rejected the request ({error.status_code}): "
+        print(f"stackin-api rejected the request ({error.status_code}): "
               f"{error.detail}")
         return None
 

@@ -6,7 +6,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
 
-from invoice.core.br.tax import Tax
+from stackin.core.br.tax import Tax
 
 
 class PresumedCredit(BaseModel):
