@@ -1,8 +1,8 @@
-"""Tax module — typed det/imposto groups, values you already computed."""
+"""Tax module."""
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -10,7 +10,7 @@ _CONFIG = ConfigDict(populate_by_name=True)
 
 
 class Icms00(BaseModel):
-    """ICMS fully taxed (CST 00)."""
+    """ICMS fully taxed."""
 
     model_config = _CONFIG
 
@@ -25,7 +25,7 @@ class Icms00(BaseModel):
 
 
 class Icms40(BaseModel):
-    """ICMS exempt/not taxed/suspended (CST 40/41/50)."""
+    """ICMS exempt or not taxed."""
 
     model_config = _CONFIG
 
@@ -36,7 +36,7 @@ class Icms40(BaseModel):
 
 
 class IcmsSn101(BaseModel):
-    """Simples Nacional ICMS with a credit (CSOSN 101)."""
+    """Simples Nacional ICMS with a credit."""
 
     model_config = _CONFIG
 
@@ -47,7 +47,7 @@ class IcmsSn101(BaseModel):
 
 
 class IcmsSn102(BaseModel):
-    """Simples Nacional ICMS without a credit (CSOSN 102/103/300/400)."""
+    """Simples Nacional ICMS without a credit."""
 
     model_config = _CONFIG
 
@@ -64,7 +64,7 @@ class IcmsUfDest(BaseModel):
     v_bc_fcp_uf_dest: str | None = Field(default=None, alias="vBCFCPUFDest")
     p_fcp_uf_dest: str | None = Field(default=None, alias="pFCPUFDest")
     p_icms_uf_dest: str = Field(alias="pICMSUFDest")
-    p_icms_inter: str = Field(alias="pICMSInter")
+    p_icms_inter: Literal["4.00", "7.00", "12.00"] = Field(alias="pICMSInter")
     p_icms_inter_part: str = Field(alias="pICMSInterPart")
     v_fcp_uf_dest: str | None = Field(default=None, alias="vFCPUFDest")
     v_icms_uf_dest: str = Field(alias="vICMSUFDest")
@@ -72,7 +72,7 @@ class IcmsUfDest(BaseModel):
 
 
 class PisAliq(BaseModel):
-    """PIS taxed by rate (CST 01/02)."""
+    """PIS taxed by rate."""
 
     model_config = _CONFIG
 
@@ -83,7 +83,7 @@ class PisAliq(BaseModel):
 
 
 class PisNt(BaseModel):
-    """PIS not taxed (CST 04-09)."""
+    """PIS not taxed."""
 
     model_config = _CONFIG
 
@@ -91,7 +91,7 @@ class PisNt(BaseModel):
 
 
 class CofinsAliq(BaseModel):
-    """COFINS taxed by rate (CST 01/02)."""
+    """COFINS taxed by rate."""
 
     model_config = _CONFIG
 
@@ -102,7 +102,7 @@ class CofinsAliq(BaseModel):
 
 
 class CofinsNt(BaseModel):
-    """COFINS not taxed (CST 04-09)."""
+    """COFINS not taxed."""
 
     model_config = _CONFIG
 
@@ -124,7 +124,7 @@ _COFINS_TAGS = {CofinsAliq: "COFINSAliq", CofinsNt: "COFINSNT"}
 
 
 class Tax(BaseModel):
-    """This item's taxes — every value here is one you already computed."""
+    """This item's taxes, already computed by the caller."""
 
     icms: IcmsGroup | None = None
     icms_uf_dest: IcmsUfDest | None = None
@@ -133,7 +133,7 @@ class Tax(BaseModel):
     ipi: dict[str, Any] | None = None
 
     def to_dict(self) -> dict:
-        """Returns the det/imposto shape invoice-api expects."""
+        """Returns the taxes as a plain dict."""
         data: dict[str, Any] = {}
         if self.icms is not None:
             data["ICMS"] = _wrap(self.icms, _ICMS_TAGS)
@@ -151,7 +151,7 @@ class Tax(BaseModel):
 
 
 def _wrap(group: BaseModel | dict, tags: dict[type, str]) -> dict:
-    """Nests a typed tax group under its XSD variant tag name."""
+    """Nests a tax group under its variant name."""
     if isinstance(group, dict):
         return group
     return {tags[type(group)]: group.model_dump(by_alias=True, exclude_none=True)}

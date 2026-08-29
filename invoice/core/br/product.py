@@ -1,4 +1,4 @@
-"""Product module — Brazil-specific, see `invoice.core.br`."""
+"""Product module."""
 
 from __future__ import annotations
 
@@ -10,8 +10,7 @@ from invoice.core.br.tax import Tax
 
 
 class PresumedCredit(BaseModel):
-    """`det/prod/gCred` — presumed ICMS credit / state tax benefit
-    applied to this item, up to 4 per item."""
+    """A presumed tax credit applied to this item."""
 
     code: str
     percentage: float
@@ -19,66 +18,7 @@ class PresumedCredit(BaseModel):
 
 
 class Product(BaseModel):
-    """
-    One line item — pass a list of these as `issue()`'s `items`; one
-    entry even for a single product/service. NFe emits one `det` per
-    item; NFSe (a single service) only uses the first.
-
-    `ncm`/`cfop`/... are Brazilian tax classification codes (Receita
-    Federal's NCM table, SINIEF's CFOP table) with no equivalent in
-    NFSE or in any other country's fiscal documents — don't reuse
-    this class outside a Brazil/NFE context.
-
-    `issue()` requires `ncm` and `cfop` when `document_type` is NFE.
-
-    Covers the full `det/prod` XSD group: commonly-used fields are
-    typed below; the vertical-specific groups that only apply to a
-    handful of business types (import/export declarations, vehicles,
-    medicine, weapons, fuel, batch/lot tracking) go in `extra_groups`
-    — a passthrough dict keyed by their exact XSD tag name (`DI`,
-    `detExport`, `rastro`, `veicProd`, `med`, `arma`, `comb`). None of
-    this is validated by the SDK — invoice-api and the authorizer's
-    own schema/business rules are the real check.
-
-    Args:
-        description (str): Service/product description.
-        amount (float): Item's amount.
-        ncm (str | None): NCM code (8 digits, or "00" for services/
-            non-goods).
-        cfop (str | None): CFOP code for this operation.
-        unit (str): Commercial unit. Default "UN".
-        quantity (float): Commercial quantity. Default 1 (the unit
-            price is then just `amount`).
-        barcode (str | None): cEAN/cEANTrib — real GTIN/barcode,
-            overrides the "SEM GTIN" default.
-        cest (str | None): CEST — required only for ICMS-ST items.
-        nve_codes (list[str] | None): NVE — customs valuation/
-            statistical nomenclature codes, up to 8.
-        ind_escala (str | None): indEscala — "S"/"N", relevant-scale
-            manufacturing indicator.
-        manufacturer_cnpj (str | None): CNPJFab — required when
-            ind_escala="N".
-        tax_benefit_code (str | None): cBenef.
-        presumed_credits (list[PresumedCredit] | None): gCred, up to 4.
-        ex_tipi (str | None): EXTIPI.
-        freight (float | None): vFrete for this item.
-        insurance (float | None): vSeg for this item.
-        discount (float | None): vDesc for this item.
-        other_expenses (float | None): vOutro for this item.
-        used_movable_asset (bool): indBemMovelUsado.
-        purchase_order (str | None): xPed.
-        purchase_order_item (str | None): nItemPed.
-        import_content_control_number (str | None): nFCI — Ficha de
-            Conteúdo de Importação.
-        recopi_number (str | None): nRECOPI — paper subject to
-            RECOPI control.
-        extra_groups (dict[str, Any] | None): Passthrough for
-            det/prod's vertical-specific groups (DI, detExport,
-            rastro, veicProd, med, arma, comb), keyed by their exact
-            XSD tag name.
-        tax (Tax | dict[str, Any] | None): This item's taxes — a
-            typed `Tax`, or a raw det/imposto passthrough dict.
-    """
+    """One product or service line item on an invoice."""
 
     description: str = Field(..., min_length=1)
     amount: float = Field(..., gt=0)
@@ -107,10 +47,7 @@ class Product(BaseModel):
     tax: Tax | dict[str, Any] | None = Field(default=None)
 
     def to_dict(self) -> dict:
-        """Return the item as a plain dict, ready for the request
-        body — `description`/`amount` at the top, everything else
-        nested under `product` (invoice-api's `IssueRequest` shape).
-        Fields left unset are omitted, not sent as null."""
+        """Returns the item as a plain dict, ready for the request body."""
         data = self.model_dump(
             exclude_none=True, exclude={"description", "amount", "tax"}
         )

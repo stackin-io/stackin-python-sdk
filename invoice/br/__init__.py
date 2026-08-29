@@ -1,9 +1,4 @@
-"""Brazil (BR) jurisdiction — public surface for concepts with no
-meaning outside Brazil (NCM, CFOP, etc). Import from here, not from
-`invoice` directly:
-
-    from invoice.br import Product
-"""
+"""Brazil-specific document fields."""
 
 from invoice.core.br.product import PresumedCredit, Product
 from invoice.core.br.tax import (

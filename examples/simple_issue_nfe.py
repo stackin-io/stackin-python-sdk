@@ -201,7 +201,7 @@ class ProductCatalog:
                 ),
                 icms_uf_dest=IcmsUfDest(
                     v_bc_uf_dest="101.84", p_icms_uf_dest="17.0000",
-                    p_icms_inter="12.0000", p_icms_inter_part="100.0000",
+                    p_icms_inter="12.00", p_icms_inter_part="100.0000",
                     v_icms_uf_dest="5.09", v_icms_uf_remet="0.00",
                 ),
             ),

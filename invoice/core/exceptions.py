@@ -6,13 +6,7 @@ class InvoiceError(Exception):
 
 
 class APIError(InvoiceError):
-    """
-    Raised when the invoice API responds with a non-2xx status.
-
-    Args:
-        status_code (int): HTTP status returned by the API.
-        detail (str): The API's `detail` field, or raw body if absent.
-    """
+    """Raised when the invoice API responds with an error status."""
 
     def __init__(self, status_code: int, detail: str) -> None:
         self.status_code = status_code
