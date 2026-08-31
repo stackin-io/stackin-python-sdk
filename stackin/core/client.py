@@ -127,7 +127,7 @@ class Invoice:
         json: dict | None = None,
         params: dict | None = None,
     ) -> dict:
-        url = f"{self.base_url}/api/v1{path}"
+        url = f"{self.base_url}/api/v1/sdk{path}"
 
         try:
             response = requests.request(
