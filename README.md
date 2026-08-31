@@ -20,7 +20,7 @@ Python SDK for fiscal document issuance — a handful of business fields, nothin
 ## Install
 
 ```bash
-pip install stackin
+pip install stackin-python-sdk
 ```
 
 ## Usage

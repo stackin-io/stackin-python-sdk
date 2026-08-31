@@ -1,5 +1,5 @@
 [project]
-name = "stackin"
+name = "stackin-python-sdk"
 version = "0.1.0"
 authors = [
   { name = "Fernando Celmer", email = "email@fernandocelmer.com" },
@@ -37,7 +37,7 @@ dependencies = [
 ]
 
 [tool.poetry]
-name = "stackin"
+name = "stackin-python-sdk"
 version = "0.1.0"
 description = "Python SDK for issuing, consulting and cancelling electronic invoices."
 authors = ["Fernando Celmer <email@fernandocelmer.com>"]
