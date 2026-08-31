@@ -13,10 +13,10 @@ class DocumentType(str, Enum):
 
 
 class Environment(str, Enum):
-    """Which stackin-api host to talk to — pass to `Invoice(environment=...)`
+    """Which host to talk to — pass to `Invoice(environment=...)`
     instead of a raw `base_url`. `TEST` and `PRODUCTION` resolve to the
     same host: homologation vs. production invoicing is a per-company
-    setting on the stackin-api side, not a different SDK host."""
+    setting on the platform side, not a different SDK host."""
 
     LOCAL = "local"
     TEST = "test"
