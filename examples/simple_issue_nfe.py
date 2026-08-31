@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """Minimal NFE issuance — every field here is required by
-stackin-api for document_type=NFE:
+the platform for document_type=NFE:
 
-- api_key: the issuing company's key (POST /api/v1/companies) —
-  stackin-api resolves the issuer's UF/address/certificate from it.
+- api_key: the issuing company's key (obtained from the dashboard) —
+  the platform resolves the issuer's UF/address/certificate from it.
 - items: always a list, one Product even for a single item.
 - Product.ncm/Product.cfop: required XSD fields (tax classification/
   operation code), no NFE-valid default exists for either.
@@ -11,7 +11,7 @@ stackin-api for document_type=NFE:
   (interstate vs internal) — omitting it always produces idDest=1.
 
 Everything else (issuer data, access key, XML-DSig signature, tax
-totals) is resolved server-side — see stackin-api/README.md."""
+totals) is resolved server-side."""
 
 import os
 
@@ -271,10 +271,10 @@ def main():
             recipient_address=Address(state="SC"),
         )
     except ConnectionFailedError:
-        print("Could not reach stackin-api")
+        print("Could not reach the platform")
         return None
     except APIError as error:
-        print(f"stackin-api rejected the request ({error.status_code}): "
+        print(f"Request rejected ({error.status_code}): "
               f"{error.detail}")
         return None
 

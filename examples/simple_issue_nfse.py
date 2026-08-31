@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 """Minimal NFSE issuance — `api_key` (the issuing company's key,
-POST /api/v1/companies) is the only thing stackin-api needs to
+obtained from the dashboard) is the only thing the platform needs to
 resolve the issuer's city/certificate. No Product here — NCM/CFOP
 don't apply to a service.
 
-Note: NFSE's signature algorithm is genuinely unconfirmed (see
-plan/IMPLEMENTATION.md section 10), so this example is expected to
-get a 501 from stackin-api today, not a successful issuance."""
+Note: NFSE's signature algorithm is genuinely unconfirmed today, so
+this example is expected to get a 501, not a successful issuance."""
 
 import os
 
@@ -25,7 +24,7 @@ load_dotenv()
 
 class ServiceCatalog:
     """Builds Product examples for NFSE — only description/amount are
-    used (stackin-api reads nothing else off the item for a service)."""
+    used (the platform reads nothing else off the item for a service)."""
 
     @staticmethod
     def software_development():
@@ -70,10 +69,10 @@ def main():
             items=ServiceCatalog.all(),
         )
     except ConnectionFailedError:
-        print("Could not reach stackin-api")
+        print("Could not reach the platform")
         return None
     except APIError as error:
-        print(f"stackin-api rejected the request ({error.status_code}): "
+        print(f"Request rejected ({error.status_code}): "
               f"{error.detail}")
         return None
 
