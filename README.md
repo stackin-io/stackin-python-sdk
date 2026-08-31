@@ -76,17 +76,3 @@ Building the full fiscal document (issuer data, service code, tax groups, schema
 ## Examples
 
 Runnable end-to-end scripts in [`examples/`](examples/) — `simple_issue_nfe.py` and `simple_issue_nfse.py`, each with a catalog of realistic line items covering every optional field.
-
-## Commit Style
-
-| Icon | Type      | Description                                |
-|------|-----------|--------------------------------------------|
-| ⚙️   | FEATURE   | New feature                                |
-| 📝   | PEP8      | Formatting fixes following PEP8            |
-| 📌   | ISSUE     | Reference to issue                         |
-| 🪲   | BUG       | Bug fix                                    |
-| 📘   | DOCS      | Documentation changes                      |
-| 📦   | PyPI      | PyPI releases                              |
-| ❤️️   | TEST      | Automated tests                            |
-| ⬆️   | CI/CD     | Changes in continuous integration/delivery |
-| ⚠️   | SECURITY  | Security improvements                      |
