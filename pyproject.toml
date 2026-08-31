@@ -4,10 +4,33 @@ version = "0.1.0"
 authors = [
   { name = "Fernando Celmer", email = "email@fernandocelmer.com" },
 ]
-description = "🧾 SDK Python humano pro stackin-api (emitir/consultar/cancelar NF-e/NFS-e)."
+description = "Python SDK for issuing, consulting and cancelling electronic invoices."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
+keywords = [
+  "nfe",
+  "nfse",
+  "nota-fiscal",
+  "nota-fiscal-eletronica",
+  "invoice",
+  "fiscal-document",
+  "brazil",
+  "sefaz",
+  "e-invoicing",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Office/Business :: Financial :: Accounting",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Natural Language :: Portuguese (Brazilian)",
+]
 dependencies = [
   "requests",
   "pydantic",
@@ -16,7 +39,7 @@ dependencies = [
 [tool.poetry]
 name = "stackin"
 version = "0.1.0"
-description = "🧾 SDK Python humano pro stackin-api (emitir/consultar/cancelar NF-e/NFS-e)."
+description = "Python SDK for issuing, consulting and cancelling electronic invoices."
 authors = ["Fernando Celmer <email@fernandocelmer.com>"]
 readme = "README.md"
 license = "MIT"
