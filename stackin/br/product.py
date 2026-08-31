@@ -59,9 +59,7 @@ class Product(BaseModel):
         default=None
     )
     ind_escala: str | None = Field(default=None)
-    manufacturer_cnpj: str | None = Field(
-        default=None, pattern=r"^[0-9A-Z]{12}\d{2}$"
-    )
+    manufacturer_cnpj: str | None = Field(default=None, pattern=r"^[0-9A-Z]{12}\d{2}$")
     tax_benefit_code: str | None = Field(default=None, pattern=_CBENEF_PATTERN)
     presumed_credits: list[PresumedCredit] | None = Field(default=None)
     ex_tipi: str | None = Field(default=None, pattern=r"^\d{2,3}$")
@@ -79,9 +77,7 @@ class Product(BaseModel):
             exclude_none=True,
             exclude={"description", "amount", "tax", *_BR_FIELDS},
         )
-        br = self.model_dump(
-            exclude_none=True, include=_BR_FIELDS - {"tax"}
-        )
+        br = self.model_dump(exclude_none=True, include=_BR_FIELDS - {"tax"})
         if isinstance(self.tax, Tax):
             br["tax"] = self.tax.to_dict()
         elif self.tax is not None:

@@ -93,9 +93,7 @@ class Invoice:
         """Consults a fiscal document by its access key."""
         params = {"document_type": document_type.value}
 
-        return self._request(
-            "GET", f"/invoices/{access_key}", params=params
-        )
+        return self._request("GET", f"/invoices/{access_key}", params=params)
 
     def cancel(
         self,
@@ -110,9 +108,7 @@ class Invoice:
             "reason": reason,
         }
 
-        return self._request(
-            "POST", f"/invoices/{access_key}/cancel", json=payload
-        )
+        return self._request("POST", f"/invoices/{access_key}/cancel", json=payload)
 
     def _headers(self) -> dict:
         if self.api_key:
