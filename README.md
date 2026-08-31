@@ -5,7 +5,10 @@
 **Integrate once. Issue everywhere.**
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square)](pyproject.toml)
+[![PyPI](https://img.shields.io/pypi/v/stackin-python-sdk?style=flat-square)](https://pypi.org/project/stackin-python-sdk/)
 [![License](https://img.shields.io/badge/license-MIT-informational?style=flat-square)](https://github.com/stackin-io/stackin-python-sdk)
+
+[API Reference](https://docs.stackin.io) · [Python SDK guide](https://docs.stackin.io/blog/python-sdk)
 
 </div>
 
@@ -25,7 +28,7 @@ pip install stackin-python-sdk
 
 ## Usage
 
-Get an `api_key` from the [stackin dashboard](https://app.stackin.io) — select the issuing company, then Settings → API key. One key per issuing company, shown once at creation. The API resolves the issuer (CNPJ, state, address, certificate, environment) entirely from it; nothing about the issuer is ever passed on a call.
+Get an `api_key` from the [stackin dashboard](https://app.stackin.io) — select the issuing company, then Settings → API key (context `sdk`). One key per issuing company, shown once at creation. The API resolves the issuer (CNPJ, state, address, certificate, environment) entirely from it; nothing about the issuer is ever passed on a call.
 
 ```python
 from stackin import Invoice, DocumentType, Address
