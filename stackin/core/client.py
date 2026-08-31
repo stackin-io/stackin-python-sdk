@@ -2,12 +2,40 @@
 
 from __future__ import annotations
 
+import os
+
 import requests
 
 from stackin.core.address import Address
-from stackin.core.br.product import Product
+from stackin.br.product import Product
 from stackin.core.exceptions import APIError, ConnectionFailedError
-from stackin.core.types import DocumentType
+from stackin.core.types import DocumentType, Environment
+
+DEFAULT_BASE_URL = "https://sdk.stackin.io"
+
+_ENVIRONMENT_URLS = {
+    Environment.LOCAL: "http://localhost:8000",
+    Environment.TEST: DEFAULT_BASE_URL,
+    Environment.PRODUCTION: DEFAULT_BASE_URL,
+}
+
+
+def _resolve_base_url(
+    base_url: str | None, environment: Environment | str | None
+) -> str:
+    """Resolution order, same shape as the AWS CLI: explicit param,
+    then env var, then the environment's default — `base_url` always
+    wins over `environment` at each step."""
+    if base_url:
+        return base_url
+    if url := os.environ.get("STACKIN_BASE_URL"):
+        return url
+
+    if environment is not None:
+        return _ENVIRONMENT_URLS[Environment(environment)]
+    if env_name := os.environ.get("STACKIN_ENVIRONMENT"):
+        return _ENVIRONMENT_URLS[Environment(env_name)]
+    return DEFAULT_BASE_URL
 
 
 class Invoice:
@@ -15,12 +43,14 @@ class Invoice:
 
     def __init__(
         self,
-        base_url: str,
+        base_url: str | None = None,
+        environment: Environment | str | None = None,
         api_key: str | None = None,
         timeout: int = 30,
     ) -> None:
-        self.base_url = base_url.rstrip("/")
-        self.api_key = api_key
+        resolved_url = _resolve_base_url(base_url, environment)
+        self.base_url = resolved_url.rstrip("/")
+        self.api_key = api_key or os.environ.get("STACKIN_API_KEY")
         self.timeout = timeout
 
     def issue(

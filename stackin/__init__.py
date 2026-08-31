@@ -6,11 +6,12 @@ __description__ = "🧾 Human Python SDK for stackin-api — issue, consult, can
 from .core.address import Address
 from .core.client import Invoice
 from .core.exceptions import APIError, ConnectionFailedError, InvoiceError
-from .core.types import DocumentType
+from .core.types import DocumentType, Environment
 
 __all__ = [
     "Invoice",
     "DocumentType",
+    "Environment",
     "Address",
     "InvoiceError",
     "APIError",

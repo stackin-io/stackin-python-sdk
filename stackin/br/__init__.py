@@ -1,7 +1,7 @@
 """Brazil-specific document fields."""
 
-from stackin.core.br.product import PresumedCredit, Product
-from stackin.core.br.tax import (
+from stackin.br.product import PresumedCredit, Product
+from stackin.br.tax import (
     CofinsAliq,
     CofinsNt,
     CofinsOutr,

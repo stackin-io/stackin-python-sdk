@@ -60,10 +60,7 @@ class ServiceCatalog:
 
 
 def main():
-    client = Invoice(
-        base_url="http://localhost:8000",
-        api_key=os.environ.get("NFE_TEST_API_KEY")
-    )
+    client = Invoice(api_key=os.environ.get("NFE_TEST_API_KEY"))
 
     try:
         result = client.issue(
@@ -73,7 +70,7 @@ def main():
             items=ServiceCatalog.all(),
         )
     except ConnectionFailedError:
-        print("stackin-api is not running on localhost:8000")
+        print("Could not reach stackin-api")
         return None
     except APIError as error:
         print(f"stackin-api rejected the request ({error.status_code}): "
