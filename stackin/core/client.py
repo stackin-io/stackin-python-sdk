@@ -6,8 +6,8 @@ import os
 
 import requests
 
-from stackin.core.address import Address
 from stackin.br.product import Product
+from stackin.core.address import Address
 from stackin.core.exceptions import APIError, ConnectionFailedError
 from stackin.core.types import DocumentType, Environment
 
@@ -71,7 +71,9 @@ class Invoice:
                 if not item.ncm:
                     raise ValueError(f"items[{index}].ncm is required for NFE")
                 if not item.cfop:
-                    raise ValueError(f"items[{index}].cfop is required for NFE")
+                    raise ValueError(
+                        f"items[{index}].cfop is required for NFE"
+                    )
 
         payload = {
             "document_type": document_type.value,
@@ -108,7 +110,9 @@ class Invoice:
             "reason": reason,
         }
 
-        return self._request("POST", f"/invoices/{access_key}/cancel", json=payload)
+        return self._request(
+            "POST", f"/invoices/{access_key}/cancel", json=payload
+        )
 
     def _headers(self) -> dict:
         if self.api_key:

@@ -55,11 +55,13 @@ class Product(BaseModel):
     ncm: str | None = Field(default=None, pattern=r"^\d{2}$|^\d{8}$")
     cfop: str | None = Field(default=None, pattern=r"^[123567]\d{3}$")
     cest: str | None = Field(default=None, pattern=r"^\d{7}$")
-    nve_codes: list[Annotated[str, Field(pattern=r"^[A-Z]{2}\d{4}$")]] | None = Field(
-        default=None
-    )
+    nve_codes: (
+        list[Annotated[str, Field(pattern=r"^[A-Z]{2}\d{4}$")]] | None
+    ) = Field(default=None)
     ind_escala: str | None = Field(default=None)
-    manufacturer_cnpj: str | None = Field(default=None, pattern=r"^[0-9A-Z]{12}\d{2}$")
+    manufacturer_cnpj: str | None = Field(
+        default=None, pattern=r"^[0-9A-Z]{12}\d{2}$"
+    )
     tax_benefit_code: str | None = Field(default=None, pattern=_CBENEF_PATTERN)
     presumed_credits: list[PresumedCredit] | None = Field(default=None)
     ex_tipi: str | None = Field(default=None, pattern=r"^\d{2,3}$")
@@ -84,4 +86,8 @@ class Product(BaseModel):
             br["tax"] = self.tax
         if br:
             data["br"] = br
-        return {"description": self.description, "amount": self.amount, "product": data}
+        return {
+            "description": self.description,
+            "amount": self.amount,
+            "product": data,
+        }

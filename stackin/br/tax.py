@@ -44,7 +44,9 @@ class Icms60(BaseModel):
     cst: str = Field(default="60", alias="CST")
     v_bc_st_ret: str | None = Field(default=None, alias="vBCSTRet")
     p_st: str | None = Field(default=None, alias="pST")
-    v_icms_substituto: str | None = Field(default=None, alias="vICMSSubstituto")
+    v_icms_substituto: str | None = Field(
+        default=None, alias="vICMSSubstituto"
+    )
     v_icms_st_ret: str | None = Field(default=None, alias="vICMSSTRet")
     v_bc_fcp_st_ret: str | None = Field(default=None, alias="vBCFCPSTRet")
     p_fcp_st_ret: str | None = Field(default=None, alias="pFCPSTRet")
@@ -234,7 +236,9 @@ class Tax(BaseModel):
                 by_alias=True, exclude_none=True
             )
         if self.ipi is not None:
-            data["IPI"] = self.ipi.to_dict() if isinstance(self.ipi, Ipi) else self.ipi
+            data["IPI"] = (
+                self.ipi.to_dict() if isinstance(self.ipi, Ipi) else self.ipi
+            )
         if self.pis is not None:
             data["PIS"] = _wrap(self.pis, _PIS_TAGS)
         if self.cofins is not None:
@@ -246,4 +250,6 @@ def _wrap(group: BaseModel | dict, tags: dict[type, str]) -> dict:
     """Nests a tax group under its variant name."""
     if isinstance(group, dict):
         return group
-    return {tags[type(group)]: group.model_dump(by_alias=True, exclude_none=True)}
+    return {
+        tags[type(group)]: group.model_dump(by_alias=True, exclude_none=True)
+    }
