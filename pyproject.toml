@@ -6,6 +6,7 @@ authors = [
 ]
 description = "🧾 SDK Python humano pro stackin-api (emitir/consultar/cancelar NF-e/NFS-e)."
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
   "requests",
@@ -18,6 +19,7 @@ version = "0.1.0"
 description = "🧾 SDK Python humano pro stackin-api (emitir/consultar/cancelar NF-e/NFS-e)."
 authors = ["Fernando Celmer <email@fernandocelmer.com>"]
 readme = "README.md"
+license = "MIT"
 package-mode = true
 packages = [{ include = "stackin" }]
 
