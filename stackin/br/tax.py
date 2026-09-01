@@ -77,6 +77,19 @@ class IcmsSn102(BaseModel):
     csosn: str = Field(alias="CSOSN")
 
 
+class IcmsSn900(BaseModel):
+    """Simples Nacional ICMS, other cases (used with interstate partilha)."""
+
+    model_config = _CONFIG
+
+    orig: str | None = None
+    csosn: str = Field(default="900", alias="CSOSN")
+    mod_bc: str | None = Field(default=None, alias="modBC")
+    v_bc: str | None = Field(default=None, alias="vBC")
+    p_icms: str | None = Field(default=None, alias="pICMS")
+    v_icms: str | None = Field(default=None, alias="vICMS")
+
+
 class IcmsUfDest(BaseModel):
     """Interstate ICMS share owed to the destination state."""
 
@@ -193,7 +206,9 @@ class CofinsOutr(BaseModel):
     v_cofins: str = Field(alias="vCOFINS")
 
 
-IcmsGroup = Icms00 | Icms40 | Icms60 | IcmsSn101 | IcmsSn102 | dict[str, Any]
+IcmsGroup = (
+    Icms00 | Icms40 | Icms60 | IcmsSn101 | IcmsSn102 | IcmsSn900 | dict[str, Any]
+)
 PisGroup = PisAliq | PisNt | PisOutr | dict[str, Any]
 CofinsGroup = CofinsAliq | CofinsNt | CofinsOutr | dict[str, Any]
 
@@ -203,6 +218,7 @@ _ICMS_TAGS = {
     Icms60: "ICMS60",
     IcmsSn101: "ICMSSN101",
     IcmsSn102: "ICMSSN102",
+    IcmsSn900: "ICMSSN900",
 }
 _PIS_TAGS = {PisAliq: "PISAliq", PisNt: "PISNT", PisOutr: "PISOutr"}
 _COFINS_TAGS = {
