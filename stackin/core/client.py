@@ -61,6 +61,8 @@ class Invoice:
         tax_id: str,
         items: list[Product],
         recipient_address: Address | None = None,
+        series: str | None = None,
+        number: str | None = None,
     ) -> dict:
         """Issues a fiscal document."""
         if not items:
@@ -83,6 +85,10 @@ class Invoice:
         }
         if recipient_address:
             payload["recipient_address"] = recipient_address.to_dict()
+        if series:
+            payload["series"] = series
+        if number:
+            payload["number"] = number
 
         return self._request("POST", "/invoices", json=payload)
 
