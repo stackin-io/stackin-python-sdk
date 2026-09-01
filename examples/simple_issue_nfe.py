@@ -7,8 +7,13 @@ the platform for document_type=NFE:
 - items: always a list, one Product even for a single item.
 - Product.ncm/Product.cfop: required XSD fields (tax classification/
   operation code), no NFE-valid default exists for either.
-- recipient_address.state: optional, but sets idDest correctly
-  (interstate vs internal) — omitting it always produces idDest=1.
+- recipient_address: required — the destinatário's full address, not
+  just the state (SEFAZ rejects a document with no `enderDest`). Its
+  `state` also sets idDest correctly (interstate vs internal).
+
+This example's issuer is a MEI (CRT=4) — its ICMS groups must use
+CSOSN codes (`IcmsSn102`/`IcmsSn900`), never CST codes
+(`Icms00`/`Icms40`) which are for the Regime Normal (CRT=3).
 
 Everything else (issuer data, access key, XML-DSig signature, tax
 totals) is resolved server-side."""
@@ -26,10 +31,12 @@ from stackin import (
 )
 from stackin.br import (
     CofinsAliq,
-    Icms00,
-    Icms40,
+    CofinsNt,
+    IcmsSn102,
+    IcmsSn900,
     IcmsUfDest,
     PisAliq,
+    PisNt,
     PresumedCredit,
     Product,
     Tax,
@@ -153,7 +160,7 @@ class ProductCatalog:
 
     @staticmethod
     def taxed_icms():
-        """Real computed ICMS/PIS/COFINS instead of the no-tax-due default."""
+        """CSOSN 102 (no credit) — MEI/Simples equivalent of ICMS00."""
         return Product(
             description="Plastico celofane 50x50",
             amount=0.27,
@@ -161,10 +168,7 @@ class ProductCatalog:
             cfop="6108",
             freight=0.03,
             tax=Tax(
-                icms=Icms00(
-                    orig="0", cst="00", mod_bc="3", v_bc="0.30",
-                    p_icms="12.0000", v_icms="0.04",
-                ),
+                icms=IcmsSn102(orig="0", csosn="102"),
                 pis=PisAliq(cst="01", v_bc="0.30", p_pis="0.6500", v_pis="0.00"),
                 cofins=CofinsAliq(
                     cst="01", v_bc="0.30", p_cofins="3.0000", v_cofins="0.01"
@@ -174,7 +178,7 @@ class ProductCatalog:
 
     @staticmethod
     def icms_isento():
-        """ICMS CST 40 — exempt operation, no base/rate/value needed."""
+        """CSOSN 400 — MEI/Simples equivalent of the exempt ICMS40."""
         return Product(
             description="Rosa Holambra Vermelha",
             amount=112.44,
@@ -182,12 +186,16 @@ class ProductCatalog:
             cfop="6108",
             quantity=6,
             freight=11.05,
-            tax=Tax(icms=Icms40(orig="0", cst="40")),
+            tax=Tax(
+                icms=IcmsSn102(orig="0", csosn="400"),
+                pis=PisNt(cst="07"),
+                cofins=CofinsNt(cst="07"),
+            ),
         )
 
     @staticmethod
     def interstate_with_icms_dest():
-        """Interstate sale — ICMS split between origin and destination UF."""
+        """Interstate sale, partilha do ICMS — CSOSN 900 (MEI/Simples)."""
         return Product(
             description="Urso de Pelucia Dudu",
             amount=92.72,
@@ -195,8 +203,8 @@ class ProductCatalog:
             cfop="6108",
             freight=9.12,
             tax=Tax(
-                icms=Icms00(
-                    orig="0", cst="00", mod_bc="3", v_bc="101.84",
+                icms=IcmsSn900(
+                    orig="0", csosn="900", mod_bc="3", v_bc="101.84",
                     p_icms="12.0000", v_icms="12.22",
                 ),
                 icms_uf_dest=IcmsUfDest(
@@ -204,6 +212,8 @@ class ProductCatalog:
                     p_icms_inter="12.00", p_icms_inter_part="100.0000",
                     v_icms_uf_dest="5.09", v_icms_uf_remet="0.00",
                 ),
+                pis=PisNt(cst="07"),
+                cofins=CofinsNt(cst="07"),
             ),
         )
 
@@ -286,8 +296,18 @@ def issue(client, items, recipient_address):
 
 def main():
     client = Invoice(api_key=os.environ.get("NFE_TEST_API_KEY"))
-    issue(client, ProductCatalog.internal(), Address(state="SC"))
-    issue(client, ProductCatalog.interstate(), Address(state="RJ"))
+    internal_address = Address(
+        street="Rua das Palmeiras", number="100", neighborhood="Centro",
+        city="Florianopolis", state="SC", zip_code="88010000",
+        city_code="4205407",
+    )
+    interstate_address = Address(
+        street="Avenida Atlantica", number="500", neighborhood="Copacabana",
+        city="Rio de Janeiro", state="RJ", zip_code="22010000",
+        city_code="3304557",
+    )
+    issue(client, ProductCatalog.internal(), internal_address)
+    issue(client, ProductCatalog.interstate(), interstate_address)
 
 
 if __name__ == "__main__":
