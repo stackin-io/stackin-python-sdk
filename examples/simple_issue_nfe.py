@@ -99,7 +99,7 @@ class ProductCatalog:
             cfop="5102",
             cest="0100100",
             ind_escala="N",
-            manufacturer_cnpj="12345678000199",
+            manufacturer_cnpj="12345678000195",
         )
 
     @staticmethod
@@ -221,7 +221,7 @@ class ProductCatalog:
             cest="0300700",
             nve_codes=["NV0001", "NV0002"],
             ind_escala="N",
-            manufacturer_cnpj="12345678000199",
+            manufacturer_cnpj="12345678000195",
             tax_benefit_code="PR820001",
             presumed_credits=[
                 PresumedCredit(code="PR820001", percentage=3.0, amount=30.00),
