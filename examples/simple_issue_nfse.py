@@ -64,8 +64,8 @@ def main():
     try:
         result = client.issue(
             document_type=DocumentType.NFSE,
-            client_name="John Doe",
-            tax_id="52998224725",
+            client_name="Comprador Teste Ltda",
+            tax_id="11222333000181",
             items=ServiceCatalog.all(),
         )
     except ConnectionFailedError:
