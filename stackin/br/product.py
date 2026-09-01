@@ -73,11 +73,30 @@ class Product(BaseModel):
     extra_groups: dict[str, Any] | None = Field(default=None)
     tax: Tax | dict[str, Any] | None = Field(default=None)
 
+    service_code: str | None = Field(
+        default=None, description="LC 116/2003 item.subitem, nfse only."
+    )
+    service_discount: float | None = Field(
+        default=None, description="Unconditional discount, nfse only."
+    )
+    tax_retained: bool = Field(
+        default=False, description="ISSQN retained by the tomador, nfse only."
+    )
+    observations: str | None = Field(
+        default=None, max_length=2000, description="nfse only."
+    )
+
     def to_dict(self) -> dict:
         """Returns the item as a plain dict, ready for the request body."""
+        _NFSE_FIELDS = {
+            "service_code",
+            "service_discount",
+            "tax_retained",
+            "observations",
+        }
         data = self.model_dump(
             exclude_none=True,
-            exclude={"description", "amount", "tax", *_BR_FIELDS},
+            exclude={"description", "amount", "tax", *_BR_FIELDS, *_NFSE_FIELDS},
         )
         br = self.model_dump(exclude_none=True, include=_BR_FIELDS - {"tax"})
         if isinstance(self.tax, Tax):
@@ -90,4 +109,8 @@ class Product(BaseModel):
             "description": self.description,
             "amount": self.amount,
             "product": data,
+            "service_code": self.service_code,
+            "discount": self.service_discount,
+            "tax_retained": self.tax_retained,
+            "observations": self.observations,
         }
