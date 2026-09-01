@@ -1,11 +1,16 @@
 #!/usr/bin/env python
-"""Minimal NFSE issuance — `api_key` (the issuing company's key,
-obtained from the dashboard) is the only thing the platform needs to
-resolve the issuer's city/certificate. No Product here — NCM/CFOP
-don't apply to a service.
+"""NFSE issuance — every field here is optional except
+description/amount:
 
-Note: NFSE's signature algorithm is genuinely unconfirmed today, so
-this example is expected to get a 501, not a successful issuance."""
+- service_code: LC 116/2003 item.subitem (e.g. "1.07"). Falls back
+  to the company's fiscal profile when omitted.
+- discount: unconditional discount (vDescIncond).
+- tax_retained: ISSQN retained by the tomador (tpRetISSQN=2) instead
+  of the issuer (tpRetISSQN=1).
+- observations: free-text note on the service (xInfComp).
+
+The platform only issues the first item per call — each variant
+below is issued in its own `client.issue()` call, not batched."""
 
 import os
 
@@ -23,50 +28,85 @@ load_dotenv()
 
 
 class ServiceCatalog:
-    """Builds Product examples for NFSE — only description/amount are
-    used (the platform reads nothing else off the item for a service)."""
+    """Builds Product examples for NFSE, one field variation each."""
 
     @staticmethod
-    def software_development():
-        """A single development service."""
+    def basic():
+        """Only description/amount — service_code falls back to the
+        company's fiscal profile."""
         return Product(description="Software development", amount=5000.00)
 
     @staticmethod
-    def consulting():
-        """A consulting service."""
-        return Product(description="Technical consulting - 10 hours", amount=1500.00)
+    def with_service_code():
+        """Explicit service_code, overriding the company default —
+        1.06 (Assessoria e consultoria em informática)."""
+        return Product(
+            description="Technical consulting - 10 hours",
+            amount=1500.00,
+            service_code="1.06",
+        )
 
     @staticmethod
-    def monthly_support():
-        """A recurring support/maintenance service."""
-        return Product(description="Monthly support and maintenance", amount=800.00)
+    def with_discount():
+        """An unconditional discount applied to the service value."""
+        return Product(
+            description="Monthly support and maintenance",
+            amount=800.00,
+            service_code="1.07",
+            service_discount=50.00,
+        )
 
     @staticmethod
-    def design():
-        """A design service."""
-        return Product(description="UI/UX design", amount=3200.00)
+    def with_tax_retained():
+        """ISSQN retained by the tomador instead of the issuer."""
+        return Product(
+            description="UI/UX design",
+            amount=3200.00,
+            service_code="1.03",
+            tax_retained=True,
+        )
+
+    @staticmethod
+    def with_observations():
+        """A free-text note attached to the service."""
+        return Product(
+            description="Systems analysis and development",
+            amount=2400.00,
+            service_code="1.01",
+            observations="Referente ao contrato #2026-0042, etapa 2 de 3.",
+        )
+
+    @staticmethod
+    def full():
+        """Every optional field set at once."""
+        return Product(
+            description="Software licensing",
+            amount=1200.00,
+            service_code="1.05",
+            service_discount=100.00,
+            tax_retained=True,
+            observations="Licenca anual, renovacao automatica.",
+        )
 
     @classmethod
     def all(cls):
-        """One instance of every service variant above — issue() only
-        uses the first for NFSE, the rest are here for reference."""
         return [
-            cls.software_development(),
-            cls.consulting(),
-            cls.monthly_support(),
-            cls.design(),
+            cls.basic(),
+            cls.with_service_code(),
+            cls.with_discount(),
+            cls.with_tax_retained(),
+            cls.with_observations(),
+            cls.full(),
         ]
 
 
-def main():
-    client = Invoice(api_key=os.environ.get("NFE_TEST_API_KEY"))
-
+def issue(client, item):
     try:
         result = client.issue(
             document_type=DocumentType.NFSE,
             client_name="Comprador Teste Ltda",
             tax_id="11222333000181",
-            items=ServiceCatalog.all(),
+            items=[item],
         )
     except ConnectionFailedError:
         print("Could not reach the platform")
@@ -78,6 +118,13 @@ def main():
 
     print("Issued:", result)
     return result
+
+
+def main():
+    client = Invoice(api_key=os.environ.get("NFE_TEST_API_KEY"))
+    for item in ServiceCatalog.all():
+        print(f"--- {item.description} ---")
+        issue(client, item)
 
 
 if __name__ == "__main__":
