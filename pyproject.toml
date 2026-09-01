@@ -36,6 +36,13 @@ dependencies = [
   "pydantic",
 ]
 
+[project.urls]
+Homepage = "https://docs.stackin.io"
+Documentation = "https://docs.stackin.io/blog/python-sdk"
+Repository = "https://github.com/stackin-io/stackin-python-sdk"
+Issues = "https://github.com/stackin-io/stackin-python-sdk/issues"
+Changelog = "https://github.com/stackin-io/stackin-python-sdk/releases"
+
 [tool.poetry]
 name = "stackin-python-sdk"
 version = "0.1.0"
