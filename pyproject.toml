@@ -1,6 +1,6 @@
 [project]
 name = "stackin-python-sdk"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
   { name = "Fernando Celmer", email = "email@fernandocelmer.com" },
 ]
@@ -45,7 +45,7 @@ Changelog = "https://github.com/stackin-io/stackin-python-sdk/releases"
 
 [tool.poetry]
 name = "stackin-python-sdk"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python SDK for issuing, consulting and cancelling electronic invoices."
 authors = ["Fernando Celmer <email@fernandocelmer.com>"]
 readme = "README.md"
