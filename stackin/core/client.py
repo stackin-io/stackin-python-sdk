@@ -81,8 +81,8 @@ class Invoice:
             "tax_id": tax_id,
             "items": [item.to_dict() for item in items],
         }
-        if recipient_address and recipient_address.state:
-            payload["recipient_state"] = recipient_address.state
+        if recipient_address:
+            payload["recipient_address"] = recipient_address.to_dict()
 
         return self._request("POST", "/invoices", json=payload)
 
