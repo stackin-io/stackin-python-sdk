@@ -220,7 +220,7 @@ class ProductCatalog:
             barcode="7891000100103",
             cest="0300700",
             nve_codes=["NV0001", "NV0002"],
-            ind_escala="S",
+            ind_escala="N",
             manufacturer_cnpj="12345678000199",
             tax_benefit_code="PR820001",
             presumed_credits=[
@@ -240,8 +240,7 @@ class ProductCatalog:
         )
 
     @classmethod
-    def all(cls):
-        """One instance of every product variant above."""
+    def internal(cls):
         return [
             cls.basic(),
             cls.with_quantity(),
@@ -252,23 +251,26 @@ class ProductCatalog:
             cls.used_asset(),
             cls.with_purchase_order(),
             cls.imported(),
-            cls.taxed_icms(),
-            cls.icms_isento(),
-            cls.interstate_with_icms_dest(),
             cls.full(),
         ]
 
+    @classmethod
+    def interstate(cls):
+        return [
+            cls.taxed_icms(),
+            cls.icms_isento(),
+            cls.interstate_with_icms_dest(),
+        ]
 
-def main():
-    client = Invoice(api_key=os.environ.get("NFE_TEST_API_KEY"))
 
+def issue(client, items, recipient_address):
     try:
         result = client.issue(
             document_type=DocumentType.NFE,
             client_name="Comprador Teste Ltda",
             tax_id="11222333000181",
-            items=ProductCatalog.all(),
-            recipient_address=Address(state="SC"),
+            items=items,
+            recipient_address=recipient_address,
         )
     except ConnectionFailedError:
         print("Could not reach the platform")
@@ -280,6 +282,12 @@ def main():
 
     print("Issued:", result)
     return result
+
+
+def main():
+    client = Invoice(api_key=os.environ.get("NFE_TEST_API_KEY"))
+    issue(client, ProductCatalog.internal(), Address(state="SC"))
+    issue(client, ProductCatalog.interstate(), Address(state="RJ"))
 
 
 if __name__ == "__main__":
