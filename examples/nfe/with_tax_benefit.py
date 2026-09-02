@@ -9,7 +9,8 @@ from stackin.br import PresumedCredit, Product
 
 load_dotenv()
 
-if __name__ == "__main__":
+
+def main():
     product = Product(
         description="Produto com beneficio fiscal",
         amount=80.00,
@@ -22,3 +23,7 @@ if __name__ == "__main__":
         ],
     )
     issue(product, Address(**SAME_STATE_ADDRESS))
+
+
+if __name__ == "__main__":
+    main()

@@ -8,10 +8,15 @@ from stackin.br import Product
 
 load_dotenv()
 
-if __name__ == "__main__":
+
+def main():
     product = Product(
         description="Technical consulting - 10 hours",
         amount=1500.00,
         service_code="1.06",
     )
     issue(product)
+
+
+if __name__ == "__main__":
+    main()

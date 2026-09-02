@@ -8,7 +8,8 @@ from stackin.br import Product
 
 load_dotenv()
 
-if __name__ == "__main__":
+
+def main():
     product = Product(
         description="Software licensing",
         amount=1200.00,
@@ -18,3 +19,7 @@ if __name__ == "__main__":
         observations="Licenca anual, renovacao automatica.",
     )
     issue(product, TOMADOR_ADDRESS)
+
+
+if __name__ == "__main__":
+    main()

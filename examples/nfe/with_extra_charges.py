@@ -9,7 +9,8 @@ from stackin.br import Product
 
 load_dotenv()
 
-if __name__ == "__main__":
+
+def main():
     product = Product(
         description="Produto com encargos adicionais",
         amount=200.00,
@@ -21,3 +22,7 @@ if __name__ == "__main__":
         other_expenses=3.50,
     )
     issue(product, Address(**SAME_STATE_ADDRESS))
+
+
+if __name__ == "__main__":
+    main()

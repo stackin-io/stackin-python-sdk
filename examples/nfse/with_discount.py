@@ -8,7 +8,8 @@ from stackin.br import Product
 
 load_dotenv()
 
-if __name__ == "__main__":
+
+def main():
     product = Product(
         description="Monthly support and maintenance",
         amount=800.00,
@@ -16,3 +17,7 @@ if __name__ == "__main__":
         service_discount=50.00,
     )
     issue(product)
+
+
+if __name__ == "__main__":
+    main()

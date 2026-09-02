@@ -9,7 +9,8 @@ from stackin.br import Product
 
 load_dotenv()
 
-if __name__ == "__main__":
+
+def main():
     product = Product(
         description="Produto com codigo de barras",
         amount=29.90,
@@ -18,3 +19,7 @@ if __name__ == "__main__":
         barcode="7891000100103",
     )
     issue(product, Address(**SAME_STATE_ADDRESS))
+
+
+if __name__ == "__main__":
+    main()

@@ -9,7 +9,8 @@ from stackin.br import CofinsNt, IcmsSn900, IcmsUfDest, PisNt, Product, Tax
 
 load_dotenv()
 
-if __name__ == "__main__":
+
+def main():
     product = Product(
         description="Urso de Pelucia Dudu",
         amount=92.72,
@@ -38,3 +39,7 @@ if __name__ == "__main__":
         ),
     )
     issue(product, Address(**OTHER_STATE_ADDRESS))
+
+
+if __name__ == "__main__":
+    main()

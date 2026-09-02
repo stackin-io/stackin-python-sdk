@@ -9,7 +9,8 @@ from stackin.br import Product
 
 load_dotenv()
 
-if __name__ == "__main__":
+
+def main():
     product = Product(
         description="Produto importado",
         amount=320.00,
@@ -19,3 +20,7 @@ if __name__ == "__main__":
         import_content_control_number="550E8400-E29B-41D4-A716-446655440000",
     )
     issue(product, Address(**SAME_STATE_ADDRESS))
+
+
+if __name__ == "__main__":
+    main()

@@ -8,6 +8,11 @@ from stackin.br import Product
 
 load_dotenv()
 
-if __name__ == "__main__":
+
+def main():
     product = Product(description="Software development", amount=5000.00)
     issue(product)
+
+
+if __name__ == "__main__":
+    main()

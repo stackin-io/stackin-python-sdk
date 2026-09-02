@@ -8,7 +8,8 @@ from stackin.br import Product
 
 load_dotenv()
 
-if __name__ == "__main__":
+
+def main():
     product = Product(
         description="UI/UX design",
         amount=3200.00,
@@ -16,3 +17,7 @@ if __name__ == "__main__":
         tax_retained=True,
     )
     issue(product, TOMADOR_ADDRESS)
+
+
+if __name__ == "__main__":
+    main()

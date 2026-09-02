@@ -9,7 +9,8 @@ from stackin.br import Product
 
 load_dotenv()
 
-if __name__ == "__main__":
+
+def main():
     product = Product(
         description="Caixa de parafusos",
         amount=12.50,
@@ -19,3 +20,7 @@ if __name__ == "__main__":
         quantity=20,
     )
     issue(product, Address(**SAME_STATE_ADDRESS))
+
+
+if __name__ == "__main__":
+    main()

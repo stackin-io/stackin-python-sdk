@@ -9,7 +9,8 @@ from stackin.br import Product
 
 load_dotenv()
 
-if __name__ == "__main__":
+
+def main():
     product = Product(
         description="Bem movel usado",
         amount=500.00,
@@ -18,3 +19,7 @@ if __name__ == "__main__":
         used_movable_asset=True,
     )
     issue(product, Address(**SAME_STATE_ADDRESS))
+
+
+if __name__ == "__main__":
+    main()

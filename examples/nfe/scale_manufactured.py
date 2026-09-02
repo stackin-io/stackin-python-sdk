@@ -9,7 +9,8 @@ from stackin.br import Product
 
 load_dotenv()
 
-if __name__ == "__main__":
+
+def main():
     product = Product(
         description="Produto de fabricacao em escala",
         amount=150.00,
@@ -20,3 +21,7 @@ if __name__ == "__main__":
         manufacturer_cnpj="12345678000195",
     )
     issue(product, Address(**SAME_STATE_ADDRESS))
+
+
+if __name__ == "__main__":
+    main()

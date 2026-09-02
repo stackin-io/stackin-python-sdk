@@ -9,7 +9,8 @@ from stackin.br import CofinsNt, IcmsSn102, PisNt, Product, Tax
 
 load_dotenv()
 
-if __name__ == "__main__":
+
+def main():
     product = Product(
         description="Rosa Holambra Vermelha",
         amount=112.44,
@@ -24,3 +25,7 @@ if __name__ == "__main__":
         ),
     )
     issue(product, Address(**OTHER_STATE_ADDRESS))
+
+
+if __name__ == "__main__":
+    main()

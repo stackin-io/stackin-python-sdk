@@ -9,7 +9,8 @@ from stackin.br import CofinsAliq, IcmsSn102, PisAliq, Product, Tax
 
 load_dotenv()
 
-if __name__ == "__main__":
+
+def main():
     product = Product(
         description="Plastico celofane 50x50",
         amount=0.27,
@@ -25,3 +26,7 @@ if __name__ == "__main__":
         ),
     )
     issue(product, Address(**OTHER_STATE_ADDRESS))
+
+
+if __name__ == "__main__":
+    main()
