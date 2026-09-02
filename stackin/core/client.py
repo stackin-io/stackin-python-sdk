@@ -118,6 +118,10 @@ class Invoice:
             "POST", f"/invoices/{access_key}/cancel", json=payload
         )
 
+    def reissue(self, invoice_id: str) -> dict:
+        """Retries a previous invoice submission by its local id."""
+        return self._request("POST", f"/invoices/{invoice_id}/reissue")
+
     def _headers(self) -> dict:
         if self.api_key:
             return {"Authorization": f"Bearer {self.api_key}"}

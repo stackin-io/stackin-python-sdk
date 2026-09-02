@@ -221,6 +221,18 @@ class TestClientConsultAndCancel(unittest.TestCase):
             kwargs["json"], {"document_type": "nfe", "reason": "duplicate"}
         )
 
+    def test_reissue_sends_post_to_reissue_path(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"access_key": "reissued-key"}
+            )
+            result = self.client.reissue("inv-1")
+
+        args, _kwargs = mock_request.call_args
+        self.assertEqual(args[0], "POST")
+        self.assertTrue(args[1].endswith("/invoices/inv-1/reissue"))
+        self.assertEqual(result, {"access_key": "reissued-key"})
+
 
 class TestClientRequestHandling(unittest.TestCase):
     def setUp(self):
