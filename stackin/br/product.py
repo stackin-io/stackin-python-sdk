@@ -96,7 +96,13 @@ class Product(BaseModel):
         }
         data = self.model_dump(
             exclude_none=True,
-            exclude={"description", "amount", "tax", *_BR_FIELDS, *_NFSE_FIELDS},
+            exclude={
+                "description",
+                "amount",
+                "tax",
+                *_BR_FIELDS,
+                *_NFSE_FIELDS,
+            },
         )
         br = self.model_dump(exclude_none=True, include=_BR_FIELDS - {"tax"})
         if isinstance(self.tax, Tax):

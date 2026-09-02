@@ -207,7 +207,13 @@ class CofinsOutr(BaseModel):
 
 
 IcmsGroup = (
-    Icms00 | Icms40 | Icms60 | IcmsSn101 | IcmsSn102 | IcmsSn900 | dict[str, Any]
+    Icms00
+    | Icms40
+    | Icms60
+    | IcmsSn101
+    | IcmsSn102
+    | IcmsSn900
+    | dict[str, Any]
 )
 PisGroup = PisAliq | PisNt | PisOutr | dict[str, Any]
 CofinsGroup = CofinsAliq | CofinsNt | CofinsOutr | dict[str, Any]
