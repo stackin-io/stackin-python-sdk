@@ -23,9 +23,7 @@ _ENVIRONMENT_URLS = {
 def _resolve_base_url(
     base_url: str | None, environment: Environment | str | None
 ) -> str:
-    """Resolution order, same shape as the AWS CLI: explicit param,
-    then env var, then the environment's default — `base_url` always
-    wins over `environment` at each step."""
+    """Resolution order: explicit param, then env var, then environment's default."""
     if base_url:
         return base_url
     if url := os.environ.get("STACKIN_BASE_URL"):

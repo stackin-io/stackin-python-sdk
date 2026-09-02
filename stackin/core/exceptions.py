@@ -15,5 +15,4 @@ class APIError(InvoiceError):
 
 
 class ConnectionFailedError(InvoiceError):
-    """Raised when the invoice API can't be reached at all
-    (network/DNS/timeout)."""
+    """Raised when the invoice API can't be reached at all (network/DNS/timeout)."""
