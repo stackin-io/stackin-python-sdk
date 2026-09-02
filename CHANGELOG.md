@@ -1,5 +1,17 @@
 # Changelog — invoice (SDK)
 
+## 0.1.2
+
+### Changed
+- `examples/` split into `examples/nfe/` and `examples/nfse/`, one script per field variant instead of two large catalog scripts.
+- Multi-line docstrings collapsed to a single line across `stackin/core`.
+
+### Fixed
+- `examples/nfse/with_tax_retained.py`/`full.py` now pass a `recipient_address` — required by the API when `tax_retained=True`.
+
+### Added
+- Full `unittest.TestCase` coverage for `stackin.core.client`, `stackin.br.product`, `stackin.br.tax`, `stackin.core.address`, `stackin.core.exceptions`, `stackin.core.types` (100%).
+
 ## 0.7.0
 
 ### Added
