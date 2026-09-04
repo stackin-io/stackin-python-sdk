@@ -87,6 +87,7 @@ class Invoice:
         recipient_address: Address | None = None,
         series: str | None = None,
         number: str | None = None,
+        idempotency_key: str | None = None,
     ) -> dict:
         """Issues a fiscal document."""
         if not items:
@@ -115,7 +116,12 @@ class Invoice:
         if number:
             payload["number"] = number
 
-        return self._request("POST", "/invoices", json=payload)
+        return self._request(
+            "POST",
+            "/invoices",
+            json=payload,
+            idempotency_key=idempotency_key,
+        )
 
     def consult(
         self,
@@ -145,14 +151,23 @@ class Invoice:
             "POST", f"/invoices/{access_key}/cancel", json=payload
         )
 
-    def reissue(self, invoice_id: str) -> dict:
+    def reissue(
+        self, invoice_id: str, *, idempotency_key: str | None = None
+    ) -> dict:
         """Retries a previous invoice submission by its local id."""
-        return self._request("POST", f"/invoices/{invoice_id}/reissue")
+        return self._request(
+            "POST",
+            f"/invoices/{invoice_id}/reissue",
+            idempotency_key=idempotency_key,
+        )
 
-    def _headers(self) -> dict:
+    def _headers(self, idempotency_key: str | None = None) -> dict:
+        headers = {}
         if self.api_key:
-            return {"Authorization": f"Bearer {self.api_key}"}
-        return {}
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        if idempotency_key:
+            headers["Idempotency-Key"] = idempotency_key
+        return headers
 
     def _request(
         self,
@@ -161,6 +176,7 @@ class Invoice:
         *,
         json: dict | None = None,
         params: dict | None = None,
+        idempotency_key: str | None = None,
     ) -> dict:
         url = f"{self.base_url}/api/v1{path}"
 
@@ -170,7 +186,7 @@ class Invoice:
                 url,
                 json=json,
                 params=params,
-                headers=self._headers(),
+                headers=self._headers(idempotency_key),
                 timeout=self.timeout,
             )
         except requests.RequestException as error:
