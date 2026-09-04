@@ -151,6 +151,29 @@ class Invoice:
             "POST", f"/invoices/{access_key}/cancel", json=payload
         )
 
+    def invalidate(
+        self,
+        *,
+        series: str,
+        number_start: int,
+        number_end: int,
+        reason: str,
+    ) -> dict:
+        """Reports a reserved but never used NFE numbering range."""
+        if not 15 <= len(reason) <= 255:
+            raise ValueError("reason must be 15 to 255 characters")
+        if number_end < number_start:
+            raise ValueError("number_end can't be below number_start")
+
+        payload = {
+            "series": series,
+            "number_start": number_start,
+            "number_end": number_end,
+            "reason": reason,
+        }
+
+        return self._request("POST", "/invoices/invalidations", json=payload)
+
     def correct(
         self,
         access_key: str,
