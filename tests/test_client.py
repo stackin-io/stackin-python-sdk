@@ -275,6 +275,71 @@ class TestClientConsultAndCancel(unittest.TestCase):
         self.assertEqual(result, {"access_key": "reissued-key"})
 
 
+class TestClientInvalidate(unittest.TestCase):
+    def setUp(self):
+        self.client = Invoice(api_key="test-key")
+        self.reason = "Numeracao reservada e nao utilizada por falha no ERP"
+
+    def test_posts_to_the_invalidations_path(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"id": "range-1", "status": "invalidated"}
+            )
+            result = self.client.invalidate(
+                series="1",
+                number_start=10,
+                number_end=12,
+                reason=self.reason,
+            )
+
+        args, kwargs = mock_request.call_args
+        self.assertEqual(args[0], "POST")
+        self.assertTrue(args[1].endswith("/invoices/invalidations"))
+        self.assertEqual(
+            kwargs["json"],
+            {
+                "series": "1",
+                "number_start": 10,
+                "number_end": 12,
+                "reason": self.reason,
+            },
+        )
+        self.assertEqual(result["status"], "invalidated")
+
+    def test_rejects_a_reason_under_15_characters(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            with self.assertRaises(ValueError):
+                self.client.invalidate(
+                    series="1",
+                    number_start=10,
+                    number_end=12,
+                    reason="curto",
+                )
+            mock_request.assert_not_called()
+
+    def test_rejects_a_reason_over_255_characters(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            with self.assertRaises(ValueError):
+                self.client.invalidate(
+                    series="1",
+                    number_start=10,
+                    number_end=12,
+                    reason="a" * 256,
+                )
+            mock_request.assert_not_called()
+
+    def test_rejects_a_backwards_range(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            with self.assertRaises(ValueError):
+                self.client.invalidate(
+                    series="1",
+                    number_start=12,
+                    number_end=10,
+                    reason=self.reason,
+                )
+            mock_request.assert_not_called()
+
+
 class TestClientCorrect(unittest.TestCase):
     def setUp(self):
         self.client = Invoice(api_key="test-key")
