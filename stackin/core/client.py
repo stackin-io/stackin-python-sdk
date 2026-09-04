@@ -151,6 +151,26 @@ class Invoice:
             "POST", f"/invoices/{access_key}/cancel", json=payload
         )
 
+    def correct(
+        self,
+        access_key: str,
+        *,
+        document_type: DocumentType,
+        correction: str,
+    ) -> dict:
+        """Files a correction letter (CC-e) against an issued document."""
+        if not 15 <= len(correction) <= 1000:
+            raise ValueError("correction must be 15 to 1000 characters")
+
+        payload = {
+            "document_type": document_type.value,
+            "correction": correction,
+        }
+
+        return self._request(
+            "POST", f"/invoices/{access_key}/correction", json=payload
+        )
+
     def reissue(
         self, invoice_id: str, *, idempotency_key: str | None = None
     ) -> dict:
