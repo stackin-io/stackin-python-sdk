@@ -51,18 +51,25 @@ client.cancel(
 )
 client.reissue(invoice["id"])  # retries a rejected/failed submission
 
-# NFE requires ncm/cfop on every item, and optionally recipient_address.state
-# to get idDest right on interstate sales:
+# NFE requires ncm/cfop on every item, plus the buyer's full recipient_address:
 client.issue(
     document_type=DocumentType.NFE,
     client_name="Buyer Company Ltd",
     tax_id="11111111111111",
     items=[Product(description="Test product", amount=100.00, ncm="84713012", cfop="5102")],
-    recipient_address=Address(state="RJ"),
+    recipient_address=Address(
+        street="Avenida Atlantica",
+        number="500",
+        neighborhood="Copacabana",
+        city="Rio de Janeiro",
+        state="RJ",
+        zip_code="22010000",
+        city_code="3304557",
+    ),
 )
 ```
 
-`recipient_address` is an `Address`, but despite the name only `.state` is read — the rest of the fields aren't sent anywhere yet. It's the actual customer's state, used only to set `idDest` (interstate vs internal) on NFE — optional, omitting it always produces `idDest=1` (internal).
+`recipient_address` is an `Address` — the buyer's address, **required for NFE** and ignored for NFSE. Every field is required, `city_code` (the 7-digit IBGE municipality code) included: it becomes `enderDest` on the wire and the SEFAZ rejects a partial one. `state` is also what resolves `idDest` — a buyer in another state is emitted as an interstate operation automatically. A missing or incomplete address raises a `ValueError` locally, before the request goes out.
 
 `items` is a list of `Product` (`stackin.br`) — `description`/`amount` apply to any document type; `ncm`/`cfop` (plus everything else on `Product`: `cest`, tax groups, presumed credits...) are Brazil-specific and required per item for NFE, ignored for NFSE (a service isn't a physical good).
 
@@ -70,7 +77,7 @@ client.issue(
 
 - `stackin.APIError` — the API responded with a non-2xx status (`status_code`, `detail`) — a 401 here means `api_key` is missing, wrong, or was rotated.
 - `stackin.ConnectionFailedError` — the API didn't respond (network/DNS/timeout).
-- `ValueError` — `issue()`'s `items` is empty, or missing `ncm`/`cfop` on an item for NFE.
+- `ValueError` — `issue()`'s `items` is empty, missing `ncm`/`cfop` on an item for NFE, or a missing/incomplete `recipient_address` on NFE.
 
 Building the full fiscal document (issuer data, service code, tax groups, schema-accurate XML) is the API's job — configured once per company, not passed on every call.
 
