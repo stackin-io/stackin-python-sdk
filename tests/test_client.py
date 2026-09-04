@@ -275,6 +275,52 @@ class TestClientConsultAndCancel(unittest.TestCase):
         self.assertEqual(result, {"access_key": "reissued-key"})
 
 
+class TestClientCorrect(unittest.TestCase):
+    def setUp(self):
+        self.client = Invoice(api_key="test-key")
+        self.text = "Transportadora corrigida para Rapido Ltda"
+
+    def test_posts_to_the_correction_path(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"result": {"status": "authorized"}}
+            )
+            result = self.client.correct(
+                "abc123",
+                document_type=DocumentType.NFE,
+                correction=self.text,
+            )
+
+        args, kwargs = mock_request.call_args
+        self.assertEqual(args[0], "POST")
+        self.assertTrue(args[1].endswith("/invoices/abc123/correction"))
+        self.assertEqual(
+            kwargs["json"],
+            {"document_type": "nfe", "correction": self.text},
+        )
+        self.assertEqual(result, {"status": "authorized"})
+
+    def test_rejects_a_correction_under_15_characters(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            with self.assertRaises(ValueError):
+                self.client.correct(
+                    "abc123",
+                    document_type=DocumentType.NFE,
+                    correction="curto demais",
+                )
+            mock_request.assert_not_called()
+
+    def test_rejects_a_correction_over_1000_characters(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            with self.assertRaises(ValueError):
+                self.client.correct(
+                    "abc123",
+                    document_type=DocumentType.NFE,
+                    correction="a" * 1001,
+                )
+            mock_request.assert_not_called()
+
+
 class TestClientIdempotency(unittest.TestCase):
     def setUp(self):
         self.client = Invoice(api_key="test-key")
