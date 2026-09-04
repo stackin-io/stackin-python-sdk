@@ -36,6 +36,32 @@ def _resolve_base_url(
     return DEFAULT_BASE_URL
 
 
+_NFE_ADDRESS_FIELDS = (
+    "street",
+    "number",
+    "neighborhood",
+    "city",
+    "state",
+    "zip_code",
+    "city_code",
+)
+
+
+def _validate_nfe_address(address: Address | None) -> None:
+    """NFE needs the buyer's full address — a partial one is a SEFAZ rejection."""
+    if address is None:
+        raise ValueError("recipient_address is required for NFE")
+
+    missing = [
+        field for field in _NFE_ADDRESS_FIELDS if not getattr(address, field)
+    ]
+    if missing:
+        raise ValueError(
+            "recipient_address is missing required fields for NFE: "
+            + ", ".join(missing)
+        )
+
+
 class Invoice:
     """Client for issuing, consulting, and cancelling fiscal documents."""
 
@@ -74,6 +100,7 @@ class Invoice:
                     raise ValueError(
                         f"items[{index}].cfop is required for NFE"
                     )
+            _validate_nfe_address(recipient_address)
 
         payload = {
             "document_type": document_type.value,
