@@ -137,6 +137,33 @@ class TestClientIssueValidation(unittest.TestCase):
                 items=[item],
             )
 
+    def test_requires_recipient_address_for_nfe(self):
+        item = Product(
+            description="Produto", amount=10.0, ncm="12345678", cfop="5102"
+        )
+        with self.assertRaisesRegex(
+            ValueError, "recipient_address is required for NFE"
+        ):
+            self.client.issue(
+                document_type=DocumentType.NFE,
+                client_name="Buyer",
+                tax_id="123",
+                items=[item],
+            )
+
+    def test_rejects_partial_recipient_address_for_nfe(self):
+        item = Product(
+            description="Produto", amount=10.0, ncm="12345678", cfop="5102"
+        )
+        with self.assertRaisesRegex(ValueError, "city_code"):
+            self.client.issue(
+                document_type=DocumentType.NFE,
+                client_name="Buyer",
+                tax_id="123",
+                items=[item],
+                recipient_address=Address(state="SC"),
+            )
+
 
 class TestClientIssue(unittest.TestCase):
     def setUp(self):
