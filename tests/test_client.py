@@ -436,6 +436,31 @@ class TestClientIdempotency(unittest.TestCase):
         self.assertEqual(kwargs["headers"]["Idempotency-Key"], "idem-2")
 
 
+class TestClientToleratesUnknownFields(unittest.TestCase):
+    """The API may add response fields inside v1 — see API_CONTRACT.md §7."""
+
+    def test_an_unknown_field_reaches_the_caller(self):
+        client = Invoice(api_key="test-key")
+
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200,
+                json_data={
+                    "result": {
+                        "access_key": "abc",
+                        "status": "authorized",
+                        "field_invented_next_year": {"nested": [1, 2]},
+                    }
+                },
+            )
+            result = client.consult("abc", document_type=DocumentType.NFSE)
+
+        self.assertEqual(result["access_key"], "abc")
+        self.assertEqual(
+            result["field_invented_next_year"], {"nested": [1, 2]}
+        )
+
+
 class TestClientRequestHandling(unittest.TestCase):
     def setUp(self):
         self.client = Invoice(api_key="test-key")
