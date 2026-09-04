@@ -99,6 +99,20 @@ class TestClientHeaders(unittest.TestCase):
         client = Invoice(api_key=None)
         self.assertEqual(client._headers(), {})
 
+    def test_include_idempotency_key_when_given(self):
+        client = Invoice(api_key="test-key")
+        self.assertEqual(
+            client._headers("idem-1"),
+            {
+                "Authorization": "Bearer test-key",
+                "Idempotency-Key": "idem-1",
+            },
+        )
+
+    def test_omit_idempotency_key_when_not_given(self):
+        client = Invoice(api_key="test-key")
+        self.assertNotIn("Idempotency-Key", client._headers())
+
 
 class TestClientIssueValidation(unittest.TestCase):
     def setUp(self):
@@ -259,6 +273,56 @@ class TestClientConsultAndCancel(unittest.TestCase):
         self.assertEqual(args[0], "POST")
         self.assertTrue(args[1].endswith("/invoices/inv-1/reissue"))
         self.assertEqual(result, {"access_key": "reissued-key"})
+
+
+class TestClientIdempotency(unittest.TestCase):
+    def setUp(self):
+        self.client = Invoice(api_key="test-key")
+
+    def test_issue_sends_the_header(self):
+        item = Product(description="Servico", amount=100.0)
+
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"result": {"access_key": "abc"}}
+            )
+            self.client.issue(
+                document_type=DocumentType.NFSE,
+                client_name="Buyer",
+                tax_id="123",
+                items=[item],
+                idempotency_key="idem-1",
+            )
+
+        _, kwargs = mock_request.call_args
+        self.assertEqual(kwargs["headers"]["Idempotency-Key"], "idem-1")
+
+    def test_issue_omits_the_header_by_default(self):
+        item = Product(description="Servico", amount=100.0)
+
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"result": {"access_key": "abc"}}
+            )
+            self.client.issue(
+                document_type=DocumentType.NFSE,
+                client_name="Buyer",
+                tax_id="123",
+                items=[item],
+            )
+
+        _, kwargs = mock_request.call_args
+        self.assertNotIn("Idempotency-Key", kwargs["headers"])
+
+    def test_reissue_sends_the_header(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"access_key": "reissued-key"}
+            )
+            self.client.reissue("inv-1", idempotency_key="idem-2")
+
+        _, kwargs = mock_request.call_args
+        self.assertEqual(kwargs["headers"]["Idempotency-Key"], "idem-2")
 
 
 class TestClientRequestHandling(unittest.TestCase):
