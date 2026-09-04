@@ -73,6 +73,45 @@ client.issue(
 
 `items` is a list of `Product` (`stackin.br`) — `description`/`amount` apply to any document type; `ncm`/`cfop` (plus everything else on `Product`: `cest`, tax groups, presumed credits...) are Brazil-specific and required per item for NFE, ignored for NFSE (a service isn't a physical good).
 
+## Retrying safely
+
+Issuing is the one call you must not repeat blindly. If the response is lost — a
+timeout, a dropped connection — the document may well have been authorized, and a
+second attempt issues a **second** fiscal document: another credit, another number
+burned, and undoing it means cancelling, which has a deadline.
+
+Pass `idempotency_key` to make the retry safe:
+
+```python
+key = str(uuid.uuid4())
+
+result = invoice.issue(
+    document_type=DocumentType.NFSE,
+    client_name="Maria Silva",
+    tax_id="12345678909",
+    items=[Product(description="Consultoria", amount=1500.00)],
+    idempotency_key=key,
+)
+```
+
+Retry with the **same key and the same body** and you get the first response back,
+replayed — no second document, no credit consumed. `reissue()` takes the same
+argument.
+
+| Situation | What the API does |
+|---|---|
+| New key | issues normally, records the response |
+| Same key, same body | replays the recorded response |
+| Same key, different body | `APIError` 422 |
+| Same key, first call still running | `APIError` 409 |
+| Previous attempt failed | key is released — the retry issues |
+| Key older than 24 hours | treated as new |
+
+Generate the key yourself and keep it for as long as you might retry — a `uuid4` per
+business event, not per HTTP call. The SDK never generates one, because a key minted
+per call would protect nothing, and because two genuinely separate invoices for the
+same customer and amount on the same day are a normal thing to issue.
+
 ## Errors
 
 - `stackin.APIError` — the API responded with a non-2xx status (`status_code`, `detail`) — a 401 here means `api_key` is missing, wrong, or was rotated.
