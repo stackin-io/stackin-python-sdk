@@ -141,6 +141,31 @@ they are numbered for you.
 **NF-e only.** NFS-e has no correction letter, and asking for one returns
 a `409`.
 
+## Invalidating unused numbers
+
+NF-e numbering is sequential and the SEFAZ expects it to have no gaps. A number
+gets reserved the moment issuing starts, so a submission that fails afterwards —
+a rejection, a timeout — leaves a hole in the series. Reporting that range is how
+you close it.
+
+```python
+result = invoice.invalidate(
+    series="1",
+    number_start=10,
+    number_end=12,
+    reason="Numeracao reservada e nao utilizada por falha no ERP",
+)
+```
+
+The reason is 15 to 255 characters and the range is inclusive; both are checked
+locally, as is `number_end` not being below `number_start`.
+
+A number that already reached the authorizer can't be invalidated. The API checks
+its own records first and answers `409` naming the offending numbers, without a
+round trip — and the authorizer checks again for what we can't see from here.
+
+**NF-e only**, and it takes no access key: there is no document to point at.
+
 ## Errors
 
 - `stackin.APIError` — the API responded with a non-2xx status (`status_code`, `detail`) — a 401 here means `api_key` is missing, wrong, or was rotated.
