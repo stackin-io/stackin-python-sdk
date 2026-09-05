@@ -9,6 +9,7 @@ from stackin import (
     ConnectionFailedError,
     DocumentType,
     Invoice,
+    Manifestation,
 )
 from stackin.br import Product
 
@@ -576,3 +577,100 @@ class TestPdf(unittest.TestCase):
 
             with self.assertRaises(ConnectionFailedError):
                 self.client.pdf("abc123", document_type=DocumentType.NFSE)
+
+
+class TestReceived(unittest.TestCase):
+    """The recipient's side. Reads what the API already collected — the
+    SEFAZ caps how often a CNPJ may ask, so a listing must not call it."""
+
+    def setUp(self):
+        self.client = Invoice(api_key="key", base_url="https://api.test")
+
+    def test_it_gets_the_received_list(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"data": [], "total": 0}
+            )
+            self.client.received()
+
+        args, kwargs = mock_request.call_args
+        self.assertEqual(args[0], "GET")
+        self.assertTrue(args[1].endswith("/received-invoices"))
+
+    def test_it_passes_pagination_through(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"data": []}
+            )
+            self.client.received(limit=10, offset=20)
+
+        _, kwargs = mock_request.call_args
+        self.assertEqual(kwargs["params"], {"limit": 10, "offset": 20})
+
+    def test_it_sends_no_empty_pagination(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"data": []}
+            )
+            self.client.received()
+
+        _, kwargs = mock_request.call_args
+        self.assertEqual(kwargs["params"], {})
+
+
+class TestManifest(unittest.TestCase):
+    def setUp(self):
+        self.client = Invoice(api_key="key", base_url="https://api.test")
+
+    def manifest(self, **kwargs):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"result": {"status": "registered"}}
+            )
+            self.client.manifest("abc123", **kwargs)
+        return mock_request
+
+    def test_each_answer_reaches_the_manifestation_path(self):
+        for manifestation in (
+            Manifestation.CONFIRMACAO,
+            Manifestation.CIENCIA,
+            Manifestation.DESCONHECIMENTO,
+        ):
+            with self.subTest(manifestation.value):
+                mock_request = self.manifest(manifestation=manifestation)
+
+                args, kwargs = mock_request.call_args
+                self.assertEqual(args[0], "POST")
+                self.assertTrue(
+                    args[1].endswith("/received-invoices/abc123/manifestation")
+                )
+                self.assertEqual(
+                    kwargs["json"]["manifestation"], manifestation.value
+                )
+
+    def test_operacao_nao_realizada_carries_its_reason(self):
+        mock_request = self.manifest(
+            manifestation=Manifestation.OPERACAO_NAO_REALIZADA,
+            reason="Mercadoria nunca chegou ao endereco",
+        )
+
+        _, kwargs = mock_request.call_args
+        self.assertEqual(
+            kwargs["json"]["reason"], "Mercadoria nunca chegou ao endereco"
+        )
+
+    def test_it_is_refused_locally_without_a_reason(self):
+        """A fixed rule: no round trip needed to learn it."""
+        with self.assertRaises(ValueError):
+            self.client.manifest(
+                "abc123",
+                manifestation=Manifestation.OPERACAO_NAO_REALIZADA,
+            )
+
+    def test_a_reason_where_none_is_taken_is_refused_locally(self):
+        with self.assertRaises(ValueError):
+            self.client.manifest(
+                "abc123",
+                manifestation=Manifestation.CIENCIA,
+                reason="um motivo qualquer aqui",
+            )

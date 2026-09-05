@@ -8,12 +8,13 @@ __description__ = (
 from .core.address import Address
 from .core.client import Invoice
 from .core.exceptions import APIError, ConnectionFailedError, InvoiceError
-from .core.types import DocumentType, Environment
+from .core.types import DocumentType, Environment, Manifestation
 
 __all__ = [
     "Invoice",
     "DocumentType",
     "Environment",
+    "Manifestation",
     "Address",
     "InvoiceError",
     "APIError",
