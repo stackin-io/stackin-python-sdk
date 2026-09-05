@@ -18,3 +18,12 @@ class Environment(str, Enum):
     LOCAL = "local"
     TEST = "test"
     PRODUCTION = "production"
+
+
+class Manifestation(str, Enum):
+    """The recipient's four possible answers to a received document."""
+
+    CONFIRMACAO = "210200"
+    CIENCIA = "210210"
+    DESCONHECIMENTO = "210220"
+    OPERACAO_NAO_REALIZADA = "210240"

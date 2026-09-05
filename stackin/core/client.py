@@ -9,7 +9,7 @@ import requests
 from stackin.br.product import Product
 from stackin.core.address import Address
 from stackin.core.exceptions import APIError, ConnectionFailedError
-from stackin.core.types import DocumentType, Environment
+from stackin.core.types import DocumentType, Environment, Manifestation
 
 DEFAULT_BASE_URL = "https://sdk.stackin.io"
 
@@ -223,6 +223,61 @@ class Invoice:
             "GET", f"/invoices/{access_key}/pdf", params=params
         )
         return response.content
+
+    def received(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> dict:
+        """Documents other companies issued against this one.
+
+        Reads what the API already collected; it does not call the
+        authorizer. Collecting runs on a schedule there, because the
+        SEFAZ caps how many times a CNPJ may ask per day.
+        """
+        params = {}
+        if limit is not None:
+            params["limit"] = limit
+        if offset is not None:
+            params["offset"] = offset
+
+        return self._request("GET", "/received-invoices", params=params)
+
+    def manifest(
+        self,
+        access_key: str,
+        *,
+        manifestation: Manifestation,
+        reason: str | None = None,
+    ) -> dict:
+        """The recipient's formal answer to a received document.
+
+        Only `OPERACAO_NAO_REALIZADA` takes a reason, and it requires
+        one. Both are fixed rules, so they are checked here rather than
+        spending a round trip to be told.
+        """
+        needs_reason = manifestation is Manifestation.OPERACAO_NAO_REALIZADA
+        if needs_reason and not reason:
+            raise ValueError(
+                "manifestation 210240 (operação não realizada) requires "
+                "a reason"
+            )
+        if not needs_reason and reason:
+            raise ValueError(
+                f"manifestation {manifestation.value} does not take a "
+                "reason"
+            )
+
+        payload = {"manifestation": manifestation.value}
+        if reason:
+            payload["reason"] = reason
+
+        return self._request(
+            "POST",
+            f"/received-invoices/{access_key}/manifestation",
+            json=payload,
+        )
 
     def _headers(self, idempotency_key: str | None = None) -> dict:
         headers = {}
