@@ -529,9 +529,7 @@ class TestPdf(unittest.TestCase):
             mock_request.return_value = FakeResponse(
                 status_code, content=content, text="boom"
             )
-            result = self.client.pdf(
-                "abc123", document_type=DocumentType.NFSE
-            )
+            result = self.client.pdf("abc123", document_type=DocumentType.NFSE)
         return result, mock_request
 
     def test_it_returns_the_bytes_untouched(self):
