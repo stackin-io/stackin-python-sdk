@@ -516,3 +516,63 @@ class TestClientRequestHandling(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPdf(unittest.TestCase):
+    """The only method that returns bytes rather than a parsed object."""
+
+    def setUp(self):
+        self.client = Invoice(api_key="key", base_url="https://api.test")
+
+    def request(self, status_code=200, content=b"%PDF-1.4 fake"):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                status_code, content=content, text="boom"
+            )
+            result = self.client.pdf("abc123", document_type=DocumentType.NFSE)
+        return result, mock_request
+
+    def test_it_returns_the_bytes_untouched(self):
+        result, _ = self.request()
+
+        self.assertEqual(result, b"%PDF-1.4 fake")
+        self.assertIsInstance(result, bytes)
+
+    def test_it_gets_the_pdf_path_with_the_document_type(self):
+        _, mock_request = self.request()
+
+        args, kwargs = mock_request.call_args
+        self.assertEqual(args[0], "GET")
+        self.assertTrue(args[1].endswith("/invoices/abc123/pdf"))
+        self.assertEqual(kwargs["params"], {"document_type": "nfse"})
+
+    def test_the_authorizer_being_down_is_an_api_error(self):
+        """502 means the authorizer is unavailable, not a bad invoice."""
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                502, json_data={"detail": "authorizer unavailable"}
+            )
+
+            with self.assertRaises(APIError) as caught:
+                self.client.pdf("abc123", document_type=DocumentType.NFSE)
+
+        self.assertEqual(caught.exception.status_code, 502)
+
+    def test_nfe_surfaces_the_api_s_501(self):
+        """Not a local validation error — the API decides."""
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                501, json_data={"detail": "a PDF isn't available for nfe"}
+            )
+
+            with self.assertRaises(APIError) as caught:
+                self.client.pdf("abc123", document_type=DocumentType.NFE)
+
+        self.assertEqual(caught.exception.status_code, 501)
+
+    def test_a_network_failure_is_a_connection_error(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.side_effect = requests.ConnectionError("no route")
+
+            with self.assertRaises(ConnectionFailedError):
+                self.client.pdf("abc123", document_type=DocumentType.NFSE)

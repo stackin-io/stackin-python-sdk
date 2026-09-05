@@ -204,6 +204,26 @@ class Invoice:
             idempotency_key=idempotency_key,
         )
 
+    def pdf(
+        self,
+        access_key: str,
+        *,
+        document_type: DocumentType,
+    ) -> bytes:
+        """The authorizer's rendering of an authorized document.
+
+        Returns raw bytes — the only method that does not return a
+        parsed object. The XML is the legally valid document; this is a
+        convenience, and the authorizer's endpoint for it is unstable,
+        so an APIError with status 502 means the authorizer is
+        unavailable, not that the invoice is wrong. NFS-e only.
+        """
+        params = {"document_type": document_type.value}
+        response = self._send(
+            "GET", f"/invoices/{access_key}/pdf", params=params
+        )
+        return response.content
+
     def _headers(self, idempotency_key: str | None = None) -> dict:
         headers = {}
         if self.api_key:
@@ -221,6 +241,28 @@ class Invoice:
         params: dict | None = None,
         idempotency_key: str | None = None,
     ) -> dict:
+        response = self._send(
+            method,
+            path,
+            json=json,
+            params=params,
+            idempotency_key=idempotency_key,
+        )
+        try:
+            body = response.json() if response.content else {}
+        except ValueError:
+            body = {}
+        return body.get("result", body)
+
+    def _send(
+        self,
+        method: str,
+        path: str,
+        *,
+        json: dict | None = None,
+        params: dict | None = None,
+        idempotency_key: str | None = None,
+    ) -> requests.Response:
         url = f"{self.base_url}/api/v1{path}"
 
         try:
@@ -235,15 +277,14 @@ class Invoice:
         except requests.RequestException as error:
             raise ConnectionFailedError(str(error)) from error
 
-        try:
-            body = response.json() if response.content else {}
-        except ValueError:
-            body = {}
-
         if not response.ok:
+            try:
+                body = response.json() if response.content else {}
+            except ValueError:
+                body = {}
             raise APIError(
                 status_code=response.status_code,
                 detail=body.get("detail", response.text),
             )
 
-        return body.get("result", body)
+        return response

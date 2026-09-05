@@ -18,7 +18,7 @@
 
 Python SDK for fiscal document issuance — a handful of business fields, nothing about certificates, XML, XSD, signing or SOAP. The API resolves all of that from the issuer's own configuration, identified by `api_key`.
 
-**One class, `Invoice`** — `issue()`/`consult()`/`cancel()`/`reissue()`, nothing else to instantiate. Each line item is a `Product` (`stackin.br`) — `description`/`amount` are universal, everything else (`ncm`/`cfop`/`cest`/tax groups...) is Brazil-specific and only required for NFE; NFSE ignores it.
+**One class, `Invoice`** — `issue()`/`consult()`/`cancel()`/`reissue()`/`correct()`/`invalidate()`/`pdf()`, nothing else to instantiate. Each line item is a `Product` (`stackin.br`) — `description`/`amount` are universal, everything else (`ncm`/`cfop`/`cest`/tax groups...) is Brazil-specific and only required for NFE; NFSE ignores it.
 
 ## Install
 
@@ -50,6 +50,11 @@ client.cancel(
     reason="Typo",
 )
 client.reissue(invoice["id"])  # retries a rejected/failed submission
+
+# The authorizer's PDF, as raw bytes. NFS-e only; the XML stays the
+# legally valid document, and a 502 here means the authorizer is down.
+with open("nota.pdf", "wb") as file:
+    file.write(client.pdf(access_key, document_type=DocumentType.NFSE))
 
 # NFE requires ncm/cfop on every item, plus the buyer's full recipient_address:
 client.issue(
