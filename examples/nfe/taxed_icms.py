@@ -1,16 +1,16 @@
-#!/usr/bin/env python
-"""CSOSN 102 (no credit) — MEI/Simples equivalent of ICMS00."""
+import os
 
-from _common import OTHER_STATE_ADDRESS, issue
 from dotenv import load_dotenv
 
-from stackin import Address
+from stackin import Address, DocumentType, Invoice
 from stackin.br import CofinsAliq, IcmsSn102, PisAliq, Product, Tax
 
 load_dotenv()
 
 
 def main():
+    client = Invoice(api_key=os.environ.get("STACKIN_API_KEY"))
+
     product = Product(
         description="Plastico celofane 50x50",
         amount=0.27,
@@ -25,7 +25,24 @@ def main():
             ),
         ),
     )
-    issue(product, Address(**OTHER_STATE_ADDRESS))
+
+    result = client.issue(
+        document_type=DocumentType.NFE,
+        client_name="Comprador Teste Ltda",
+        tax_id="11222333000181",
+        items=[product],
+        recipient_address=Address(
+            street="Avenida Atlantica",
+            number="500",
+            neighborhood="Copacabana",
+            city="Rio de Janeiro",
+            state="RJ",
+            zip_code="22010000",
+            city_code="3304557",
+        ),
+    )
+
+    print(result)
 
 
 if __name__ == "__main__":

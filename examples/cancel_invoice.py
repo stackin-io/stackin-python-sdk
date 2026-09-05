@@ -2,7 +2,6 @@
 """How to cancel a previously issued fiscal document with the Stackin SDK."""
 
 import os
-import sys
 
 from dotenv import load_dotenv
 
@@ -10,23 +9,16 @@ from stackin import APIError, ConnectionFailedError, DocumentType, Invoice
 
 load_dotenv()
 
+ACCESS_KEY = "42250611222333000181550010000000011000000017"
+DOCUMENT_TYPE = DocumentType.NFE
+REASON = "Emitida com dados incorretos do destinatario"
+
 
 def main():
-    if len(sys.argv) < 4:
-        print(
-            "Usage: python cancel_invoice.py <access_key> <nfe|nfse> <reason>"
-        )
-        return
-    access_key, document_type, reason = (
-        sys.argv[1],
-        DocumentType(sys.argv[2]),
-        sys.argv[3],
-    )
-
-    client = Invoice(api_key=os.environ.get("NFE_TEST_API_KEY"))
+    client = Invoice(api_key=os.environ.get("STACKIN_API_KEY"))
     try:
         result = client.cancel(
-            access_key, document_type=document_type, reason=reason
+            ACCESS_KEY, document_type=DOCUMENT_TYPE, reason=REASON
         )
     except ConnectionFailedError:
         print("Could not reach the platform")

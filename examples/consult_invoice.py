@@ -2,7 +2,6 @@
 """How to look up a fiscal document by its access key with the Stackin SDK."""
 
 import os
-import sys
 
 from dotenv import load_dotenv
 
@@ -10,16 +9,14 @@ from stackin import APIError, ConnectionFailedError, DocumentType, Invoice
 
 load_dotenv()
 
+ACCESS_KEY = "42250611222333000181550010000000011000000017"
+DOCUMENT_TYPE = DocumentType.NFE
+
 
 def main():
-    if len(sys.argv) < 3:
-        print("Usage: python consult_invoice.py <access_key> <nfe|nfse>")
-        return
-    access_key, document_type = sys.argv[1], DocumentType(sys.argv[2])
-
-    client = Invoice(api_key=os.environ.get("NFE_TEST_API_KEY"))
+    client = Invoice(api_key=os.environ.get("STACKIN_API_KEY"))
     try:
-        result = client.consult(access_key, document_type=document_type)
+        result = client.consult(ACCESS_KEY, document_type=DOCUMENT_TYPE)
     except ConnectionFailedError:
         print("Could not reach the platform")
         return
