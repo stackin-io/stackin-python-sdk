@@ -13,7 +13,7 @@ class DocumentType(str, Enum):
 
 
 class Environment(str, Enum):
-    """Which host to talk to — pass to `Invoice(environment=...)` instead of a raw `base_url`."""
+    """Which host to talk to, instead of a raw `base_url`."""
 
     LOCAL = "local"
     TEST = "test"

@@ -67,7 +67,10 @@ class Product(BaseModel):
     ex_tipi: str | None = Field(default=None, pattern=r"^\d{2,3}$")
     import_content_control_number: str | None = Field(
         default=None,
-        pattern=r"^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}$",
+        pattern=(
+            r"^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}"
+            r"-[A-F0-9]{4}-[A-F0-9]{12}$"
+        ),
     )
     recopi_number: str | None = Field(default=None, pattern=r"^\d{20}$")
     extra_groups: dict[str, Any] | None = Field(default=None)

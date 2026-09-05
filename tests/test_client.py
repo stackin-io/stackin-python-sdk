@@ -438,7 +438,7 @@ class TestClientIdempotency(unittest.TestCase):
 
 
 class TestClientToleratesUnknownFields(unittest.TestCase):
-    """The API may add response fields inside v1 — see API_CONTRACT.md §7."""
+    """The API may add fields inside v1 — see API_CONTRACT.md §7."""
 
     def test_an_unknown_field_reaches_the_caller(self):
         client = Invoice(api_key="test-key")

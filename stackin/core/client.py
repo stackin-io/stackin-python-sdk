@@ -23,7 +23,7 @@ _ENVIRONMENT_URLS = {
 def _resolve_base_url(
     base_url: str | None, environment: Environment | str | None
 ) -> str:
-    """Resolution order: explicit param, then env var, then environment's default."""
+    """Explicit param, then env var, then the environment's default."""
     if base_url:
         return base_url
     if url := os.environ.get("STACKIN_BASE_URL"):
@@ -48,7 +48,7 @@ _NFE_ADDRESS_FIELDS = (
 
 
 def _validate_nfe_address(address: Address | None) -> None:
-    """NFE needs the buyer's full address — a partial one is a SEFAZ rejection."""
+    """NFE needs the full address — a partial one the SEFAZ rejects."""
     if address is None:
         raise ValueError("recipient_address is required for NFE")
 
