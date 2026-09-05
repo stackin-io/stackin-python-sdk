@@ -171,6 +171,40 @@ round trip — and the authorizer checks again for what we can't see from here.
 
 **NF-e only**, and it takes no access key: there is no document to point at.
 
+## Documents issued against you
+
+Everything above serves the **issuer**. These two serve the **recipient**: what
+suppliers billed to this CNPJ, and the formal answer to it.
+
+Reading the list never calls the SEFAZ. The authorizer caps how many times a CNPJ
+may ask for its distribution per day, so collecting runs on a schedule on the API
+side and a page refresh cannot spend that allowance.
+
+```python
+from stackin import Manifestation
+
+page = client.received(limit=20)
+for document in page["data"]:
+    print(document["access_key"], document["issuer_name"], document["amount"])
+
+client.manifest(access_key, manifestation=Manifestation.CIENCIA)
+client.manifest(
+    access_key,
+    manifestation=Manifestation.OPERACAO_NAO_REALIZADA,
+    reason="Mercadoria nunca chegou ao endereco",
+)
+```
+
+Before you answer a document the SEFAZ sends only a **summary** (`resNFe`): access
+key, issuer, amount, date. The **full document** (`nfeProc`) arrives after a
+manifestation, and the `schema` field on each row says which one you hold.
+
+The four answers are `210200` Confirmação da Operação, `210210` Ciência da
+Operação, `210220` Desconhecimento da Operação and `210240` Operação não
+Realizada. Only the last one takes a reason, and it requires one — both rules are
+checked locally, before the request goes out, because a round trip to be told a
+fixed rule is a round trip wasted.
+
 ## Errors
 
 - `stackin.APIError` — the API responded with a non-2xx status (`status_code`, `detail`) — a 401 here means `api_key` is missing, wrong, or was rotated.
