@@ -1,0 +1,34 @@
+name: 🧾 Integration
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  integration:
+    name: Issue a real document
+    runs-on: ubuntu-latest
+    environment: workflow
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Poetry
+        uses: ./.github/actions/setup-poetry
+        with:
+          python-version: "3.12"
+          install-deps: dev
+
+
+      - name: 🧾 Issue an NFS-e through the published surface
+        working-directory: examples/nfse
+        env:
+          STACKIN_API_KEY: ${{ secrets.STACKIN_API_KEY }}
+        run: poetry run python basic.py
+
+      - name: 📋 Summary
+        if: always()
+        run: |
+          echo "### Integration ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "examples/nfse/basic.py against the live API" >> "$GITHUB_STEP_SUMMARY"
