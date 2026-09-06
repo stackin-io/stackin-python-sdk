@@ -11,13 +11,13 @@ from stackin.br import (
     Icms40,
     Icms60,
     IcmsPart,
-    IcmsSt,
     IcmsSn101,
     IcmsSn102,
     IcmsSn201,
     IcmsSn202,
     IcmsSn500,
     IcmsSn900,
+    IcmsSt,
     IcmsUfDest,
     Ipi,
     IpiNt,
@@ -57,15 +57,11 @@ class TestTaxToDict(unittest.TestCase):
 
     def test_icms40_is_emitted_bare(self):
         tax = Tax(icms=Icms40(orig="0", cst="40"))
-        self.assertEqual(
-            tax.to_dict()["icms"], {"orig": "0", "cst": "40"}
-        )
+        self.assertEqual(tax.to_dict()["icms"], {"orig": "0", "cst": "40"})
 
     def test_icms60_is_emitted_bare(self):
         tax = Tax(icms=Icms60(orig="0"))
-        self.assertEqual(
-            tax.to_dict()["icms"], {"orig": "0", "cst": "60"}
-        )
+        self.assertEqual(tax.to_dict()["icms"], {"orig": "0", "cst": "60"})
 
     def test_icms_sn101_is_emitted_bare(self):
         tax = Tax(
@@ -77,9 +73,7 @@ class TestTaxToDict(unittest.TestCase):
 
     def test_icms_sn102_is_emitted_bare(self):
         tax = Tax(icms=IcmsSn102(orig="0", csosn="102"))
-        self.assertEqual(
-            tax.to_dict()["icms"], {"orig": "0", "csosn": "102"}
-        )
+        self.assertEqual(tax.to_dict()["icms"], {"orig": "0", "csosn": "102"})
 
     def test_icms_sn900_is_emitted_bare(self):
         tax = Tax(
@@ -139,9 +133,7 @@ class TestTaxToDict(unittest.TestCase):
 
     def test_pis_outr_is_emitted_bare(self):
         tax = Tax(pis=PisOutr(cst="99", v_pis="0.00"))
-        self.assertEqual(
-            tax.to_dict()["pis"], {"cst": "99", "v_pis": "0.00"}
-        )
+        self.assertEqual(tax.to_dict()["pis"], {"cst": "99", "v_pis": "0.00"})
 
     def test_cofins_aliq_is_emitted_bare(self):
         tax = Tax(
@@ -206,9 +198,7 @@ class TestTheCasingTheApiExpects(unittest.TestCase):
                 v_icms="18.00",
             ),
             ipi=Ipi(c_enq="999", trib=IpiNt(cst="53")),
-            pis=PisAliq(
-                cst="01", v_bc="100.00", p_pis="1.65", v_pis="1.65"
-            ),
+            pis=PisAliq(cst="01", v_bc="100.00", p_pis="1.65", v_pis="1.65"),
         )
 
         def keys(node):
@@ -236,19 +226,17 @@ class TestTheGroupsTheLeiauteAddedLater(unittest.TestCase):
 
     def test_a_monofasico_group_carries_its_own_fields(self):
         tax = Tax(
-            icms=Icms02(
-                orig="0", ad_rem_icms="0.1234", v_icms_mono="1.23"
-            )
+            icms=Icms02(orig="0", ad_rem_icms="0.1234", v_icms_mono="1.23")
         )
 
         self.assertEqual(
             tax.to_dict()["icms"],
             {
-                    "orig": "0",
-                    "cst": "02",
-                    "ad_rem_icms": "0.1234",
-                    "v_icms_mono": "1.23",
-                },
+                "orig": "0",
+                "cst": "02",
+                "ad_rem_icms": "0.1234",
+                "v_icms_mono": "1.23",
+            },
         )
 
     def test_partilha_names_the_destination_state(self):
