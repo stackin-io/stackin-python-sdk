@@ -244,6 +244,37 @@ class Invoice:
 
         return self._request("GET", "/received-invoices", params=params)
 
+    def history(
+        self,
+        *,
+        document_type: DocumentType | None = None,
+        status: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+        sort_by: str | None = None,
+        order_by: str | None = None,
+    ) -> dict:
+        """This company's own issuance history, newest first.
+
+        The counterpart of received(): that one lists what was issued
+        against the company, this one what the company issued.
+        """
+        params: dict[str, object] = {}
+        if document_type is not None:
+            params["document_type"] = document_type.value
+        if status is not None:
+            params["status"] = status
+        if limit is not None:
+            params["limit"] = limit
+        if offset is not None:
+            params["offset"] = offset
+        if sort_by is not None:
+            params["sort_by"] = sort_by
+        if order_by is not None:
+            params["order_by"] = order_by
+
+        return self._request("GET", "/invoices", params=params)
+
     def manifest(
         self,
         access_key: str,
