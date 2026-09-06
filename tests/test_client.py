@@ -740,3 +740,59 @@ class TestHistory(unittest.TestCase):
             result = self.client.history()
 
         self.assertEqual(result, rows)
+
+
+class TestSubmissions(unittest.TestCase):
+    """consult() says a document was rejected; this says why."""
+
+    def setUp(self):
+        self.client = Invoice(api_key="key", base_url="https://api.test")
+
+    def test_it_reads_the_attempts_by_invoice_id(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(200, json_data=[])
+            self.client.submissions("abc-123")
+
+        args, _ = mock_request.call_args
+        self.assertEqual(args[0], "GET")
+        self.assertTrue(args[1].endswith("/invoices/abc-123/submissions"))
+
+    def test_it_returns_what_the_authorizer_answered(self):
+        rows = [
+            {
+                "status": "rejected",
+                "status_code": "209",
+                "detail": "IE do emitente invalida",
+                "raw_response": {"cStat": "209"},
+            }
+        ]
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(200, json_data=rows)
+            result = self.client.submissions("abc-123")
+
+        self.assertEqual(result, rows)
+
+
+class TestListResponses(unittest.TestCase):
+    """A route that answers with a bare list, not the usual envelope."""
+
+    def setUp(self):
+        self.client = Invoice(api_key="key", base_url="https://api.test")
+
+    def test_a_list_body_survives_the_envelope_unwrapping(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data=[{"id": "one"}, {"id": "two"}]
+            )
+            result = self.client.submissions("abc-123")
+
+        self.assertEqual(len(result), 2)
+
+    def test_a_dict_body_is_still_unwrapped(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"result": {"status": "authorized"}}
+            )
+            result = self.client.consult("key", document_type=DocumentType.NFE)
+
+        self.assertEqual(result, {"status": "authorized"})
