@@ -12,7 +12,7 @@ def main():
     client = Invoice(api_key=os.environ.get("STACKIN_API_KEY"))
 
     product = Product(
-        description="Software development",
+        description="Software development SDK Python",
         amount=5000.00,
     )
 
