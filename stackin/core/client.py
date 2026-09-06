@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
 import requests
 
@@ -275,6 +276,14 @@ class Invoice:
 
         return self._request("GET", "/invoices", params=params)
 
+    def submissions(self, invoice_id: str) -> list:
+        """Every attempt made for one invoice, and what came back.
+
+        consult() gives the status; this gives the reason. Takes the
+        invoice_id because a rejected document has no access key.
+        """
+        return self._request("GET", f"/invoices/{invoice_id}/submissions")
+
     def manifest(
         self,
         access_key: str,
@@ -326,7 +335,7 @@ class Invoice:
         json: dict | None = None,
         params: dict | None = None,
         idempotency_key: str | None = None,
-    ) -> dict:
+    ) -> Any:
         response = self._send(
             method,
             path,
@@ -338,7 +347,9 @@ class Invoice:
             body = response.json() if response.content else {}
         except ValueError:
             body = {}
-        return body.get("result", body)
+        if isinstance(body, dict):
+            return body.get("result", body)
+        return body
 
     def _send(
         self,
