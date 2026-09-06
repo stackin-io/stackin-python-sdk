@@ -81,9 +81,9 @@ class TestProductToDict(unittest.TestCase):
         self.assertEqual(
             data["product"]["br"]["tax"],
             {
-                "ICMS": {"ICMSSN102": {"orig": "0", "CSOSN": "102"}},
-                "PIS": {"PISNT": {"CST": "07"}},
-                "COFINS": {"COFINSNT": {"CST": "07"}},
+                "icms": {"orig": "0", "csosn": "102"},
+                "pis": {"cst": "07"},
+                "cofins": {"cst": "07"},
             },
         )
 
