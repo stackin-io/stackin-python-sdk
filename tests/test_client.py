@@ -674,3 +674,69 @@ class TestManifest(unittest.TestCase):
                 manifestation=Manifestation.CIENCIA,
                 reason="um motivo qualquer aqui",
             )
+
+
+class TestHistory(unittest.TestCase):
+    """The issuer's own side: what this company issued, not what it got."""
+
+    def setUp(self):
+        self.client = Invoice(api_key="key", base_url="https://api.test")
+
+    def test_it_gets_the_invoice_list(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"data": [], "total": 0}
+            )
+            self.client.history()
+
+        args, kwargs = mock_request.call_args
+        self.assertEqual(args[0], "GET")
+        self.assertTrue(args[1].endswith("/invoices"))
+        self.assertEqual(kwargs["params"], {})
+
+    def test_it_sends_the_document_type_as_its_value(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(200, json_data={})
+            self.client.history(document_type=DocumentType.NFE)
+
+        _, kwargs = mock_request.call_args
+        self.assertEqual(kwargs["params"], {"document_type": "nfe"})
+
+    def test_it_passes_every_filter_through(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(200, json_data={})
+            self.client.history(
+                status="rejected",
+                limit=10,
+                offset=20,
+                sort_by="created_at",
+                order_by="asc",
+            )
+
+        _, kwargs = mock_request.call_args
+        self.assertEqual(
+            kwargs["params"],
+            {
+                "status": "rejected",
+                "limit": 10,
+                "offset": 20,
+                "sort_by": "created_at",
+                "order_by": "asc",
+            },
+        )
+
+    def test_it_omits_what_the_caller_did_not_ask_for(self):
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(200, json_data={})
+            self.client.history(limit=5)
+
+        _, kwargs = mock_request.call_args
+        self.assertEqual(kwargs["params"], {"limit": 5})
+
+    def test_it_returns_the_paginated_envelope(self):
+        rows = {"data": [{"id": "abc"}], "total": 1, "page": 1}
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(200, json_data=rows)
+            result = self.client.history()
+
+        self.assertEqual(result, rows)
