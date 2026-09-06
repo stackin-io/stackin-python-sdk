@@ -436,6 +436,38 @@ class TestClientIdempotency(unittest.TestCase):
         _, kwargs = mock_request.call_args
         self.assertEqual(kwargs["headers"]["Idempotency-Key"], "idem-2")
 
+    def test_cancel_sends_the_header(self):
+        """Cancelling is the irreversible one; a blind retry on a dropped
+        connection used to reach the authorizer twice."""
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"result": {"status": "cancelled"}}
+            )
+            self.client.cancel(
+                "42054072268849750000176",
+                document_type=DocumentType.NFSE,
+                reason="cancelled by the customer",
+                idempotency_key="idem-3",
+            )
+
+        _, kwargs = mock_request.call_args
+        self.assertEqual(kwargs["headers"]["Idempotency-Key"], "idem-3")
+
+    def test_cancel_omits_the_header_by_default(self):
+        """Opt-in: only the caller knows which two requests are one."""
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"result": {"status": "cancelled"}}
+            )
+            self.client.cancel(
+                "42054072268849750000176",
+                document_type=DocumentType.NFSE,
+                reason="cancelled by the customer",
+            )
+
+        _, kwargs = mock_request.call_args
+        self.assertNotIn("Idempotency-Key", kwargs["headers"])
+
 
 class TestClientToleratesUnknownFields(unittest.TestCase):
     """The API may add fields inside v1 — see API_CONTRACT.md §7."""

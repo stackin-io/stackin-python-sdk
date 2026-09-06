@@ -141,15 +141,25 @@ class Invoice:
         *,
         document_type: DocumentType,
         reason: str,
+        idempotency_key: str | None = None,
     ) -> dict:
-        """Cancels a fiscal document by its access key."""
+        """Cancels a fiscal document by its access key.
+
+        Repeating the same idempotency_key with the same body replays
+        the first answer instead of cancelling twice. Cancelling is
+        irreversible and has a legal window, so a blind retry on a
+        dropped connection is the case this exists for.
+        """
         payload = {
             "document_type": document_type.value,
             "reason": reason,
         }
 
         return self._request(
-            "POST", f"/invoices/{access_key}/cancel", json=payload
+            "POST",
+            f"/invoices/{access_key}/cancel",
+            json=payload,
+            idempotency_key=idempotency_key,
         )
 
     def invalidate(
