@@ -25,7 +25,9 @@ jobs:
         working-directory: examples/nfse
         env:
           STACKIN_API_KEY: ${{ secrets.STACKIN_API_KEY }}
-        run: poetry run python basic.py
+        run: |
+          poetry run python basic.py > result.json
+          echo "the API issued a document"
 
       - name: 📋 Summary
         if: always()

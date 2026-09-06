@@ -79,7 +79,6 @@ jobs:
     needs: [update-version, test, code-quality]
     uses: ./.github/workflows/integration.yml
     secrets: inherit
-          echo "examples/nfse/basic.py against the live API" >> $GITHUB_STEP_SUMMARY
 
   deploy:
     name: Deploy to ${{ github.event.release.prerelease && 'TestPyPI' || 'PyPI' }}
