@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
@@ -36,11 +37,17 @@ _BR_FIELDS = {
 }
 
 
+def _decimal_str(value: Decimal | None) -> str | None:
+    """JSON has no decimal; a float would lose the tenth place."""
+    return None if value is None else format(value, "f")
+
+
 class Product(BaseModel):
     """One product or service line item on an invoice."""
 
     description: str = Field(..., min_length=1)
-    amount: float = Field(..., gt=0)
+    amount: Decimal | None = Field(default=None, gt=0)
+    unit_price: Decimal | None = Field(default=None, gt=0)
     unit: str = Field(default="UN")
     quantity: float = Field(default=1.0, gt=0)
     barcode: str | None = Field(default=None)
@@ -102,6 +109,7 @@ class Product(BaseModel):
             exclude={
                 "description",
                 "amount",
+                "unit_price",
                 "tax",
                 *_BR_FIELDS,
                 *_NFSE_FIELDS,
@@ -116,7 +124,8 @@ class Product(BaseModel):
             data["br"] = br
         return {
             "description": self.description,
-            "amount": self.amount,
+            "amount": _decimal_str(self.amount),
+            "unit_price": _decimal_str(self.unit_price),
             "product": data,
             "service_code": self.service_code,
             "discount": self.service_discount,
