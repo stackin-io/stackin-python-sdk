@@ -1,4 +1,7 @@
 import unittest
+from decimal import Decimal
+
+from pydantic import ValidationError
 
 from stackin.br import CofinsNt, IcmsSn102, PisNt, PresumedCredit, Product, Tax
 
@@ -9,7 +12,7 @@ class TestProductToDict(unittest.TestCase):
         data = product.to_dict()
 
         self.assertEqual(data["description"], "Servico basico")
-        self.assertEqual(data["amount"], 100.0)
+        self.assertEqual(data["amount"], "100.0")
         self.assertEqual(
             data["product"],
             {"unit": "UN", "quantity": 1.0, "used_movable_asset": False},
@@ -147,3 +150,67 @@ class TestProductToDict(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestUnitPrice(unittest.TestCase):
+    """`unit_price` is one unit; `amount` is the line's gross total."""
+
+    def test_a_line_priced_per_unit(self):
+        product = Product(
+            description="Teclado",
+            quantity=Decimal("2"),
+            unit_price=Decimal("120.00"),
+            unit="UN",
+            ncm="84716052",
+            cfop="5102",
+        )
+
+        data = product.to_dict()
+
+        self.assertEqual(data["unit_price"], "120.00")
+        self.assertIsNone(data["amount"])
+        self.assertEqual(data["product"]["quantity"], 2.0)
+
+    def test_the_legacy_line_still_sends_only_a_total(self):
+        product = Product(description="Servico", amount=Decimal("100.00"))
+
+        data = product.to_dict()
+
+        self.assertEqual(data["amount"], "100.00")
+        self.assertIsNone(data["unit_price"])
+
+    def test_both_may_be_sent_when_they_agree(self):
+        product = Product(
+            description="Teclado",
+            quantity=Decimal("2"),
+            unit_price=Decimal("120.00"),
+            amount=Decimal("240.00"),
+        )
+
+        data = product.to_dict()
+
+        self.assertEqual(data["unit_price"], "120.00")
+        self.assertEqual(data["amount"], "240.00")
+
+    def test_the_tenth_place_survives_the_wire(self):
+        """A float would round it away before the request is built."""
+        product = Product(
+            description="Granel",
+            quantity=Decimal("1"),
+            unit_price=Decimal("0.0000000001"),
+        )
+
+        self.assertEqual(product.to_dict()["unit_price"], "0.0000000001")
+
+    def test_a_line_may_carry_neither(self):
+        """The API decides, so the SDK does not refuse a payload twice."""
+        product = Product(description="Servico")
+
+        data = product.to_dict()
+
+        self.assertIsNone(data["amount"])
+        self.assertIsNone(data["unit_price"])
+
+    def test_a_unit_price_of_zero_is_refused_here(self):
+        with self.assertRaises(ValidationError):
+            Product(description="Servico", unit_price=Decimal("0"))
