@@ -18,7 +18,73 @@
 
 Python SDK for fiscal document issuance — a handful of business fields, nothing about certificates, XML, XSD, signing or SOAP. The API resolves all of that from the issuer's own configuration, identified by `api_key`.
 
-**One class, `Invoice`** — `issue()`/`consult()`/`cancel()`/`reissue()`/`correct()`/`invalidate()`/`pdf()`/`received()`/`manifest()`, nothing else to instantiate. Each line item is a `Product` (`stackin.br`) — `description`/`amount` are universal, everything else (`ncm`/`cfop`/`cest`/tax groups...) is Brazil-specific and only required for NFE; NFSE ignores it.
+**One class, `Invoice`** — `issue()`/`consult()`/`cancel()`/`reissue()`/`correct()`/`invalidate()`/`pdf()`/`received()`/`manifest()`, nothing else to instantiate. Each line item is a `Product` (`stackin.br`) — `description` plus either `unit_price` or `amount` are universal, everything else (`ncm`/`cfop`/`cest`/tax groups...) is Brazil-specific and only required for NFE; NFSE ignores it.
+
+## What a line item is worth
+
+`unit_price` is the price of **one unit**. `amount` is the **gross total of
+the line's products**, before discount, freight, insurance and other
+expenses. Send either; sending both asserts that they agree.
+
+```python
+from decimal import Decimal
+
+# One unit
+Product(description="Consultoria", quantity=Decimal("1"), unit_price=Decimal("1500.00"))
+
+# More than one unit — amount is computed as 2 x 120.00 = 240.00
+Product(description="Teclado", quantity=Decimal("2"), unit_price=Decimal("120.00"))
+
+# A fractional quantity — 1.5 x 30.00 = 45.00
+Product(description="Cabo", quantity=Decimal("1.5"), unit_price=Decimal("30.00"))
+
+# Legacy: amount alone still means the line's gross total
+Product(description="Servico", quantity=Decimal("3"), amount=Decimal("150.00"))
+
+# Both, checked against each other before the document is transmitted
+Product(
+    description="Teclado",
+    quantity=Decimal("2"),
+    unit_price=Decimal("120.00"),
+    amount=Decimal("240.00"),
+)
+
+# With charges: 5000.00 - 100.50 + 40.00 + 10.00 = 4949.50 on the note
+Product(
+    description="Servidor",
+    quantity=Decimal("2"),
+    unit_price=Decimal("2500.00"),
+    discount=100.50,
+    freight=40.00,
+    insurance=10.00,
+)
+```
+
+Amounts that do not add up are refused before the authorizer sees them,
+with a `422` naming the line and both numbers:
+
+```json
+{
+  "detail": {
+    "code": "ITEM_TOTAL_MISMATCH",
+    "field": "items[0].amount",
+    "message": "amount is 50.00, but quantity x unit_price is 150.00.",
+    "expected": "150.00",
+    "received": "50.00"
+  }
+}
+```
+
+### Migrating
+
+```text
+Before:  quantity = 3, amount = 150.00
+After:   quantity = 3, unit_price = 50.00
+```
+
+Nothing has to migrate. `amount` keeps the meaning it always had and is
+not deprecated in this release; a line sent with `amount` alone is built
+exactly as it was before.
 
 ## Install
 
@@ -31,6 +97,8 @@ pip install stackin-python-sdk
 Get an `api_key` from the [stackin dashboard](https://app.stackin.io) — select the issuing company, then Settings → API key (context `sdk`). One key per issuing company, shown once at creation. The API resolves the issuer (CNPJ, state, address, certificate, environment) entirely from it; nothing about the issuer is ever passed on a call.
 
 ```python
+from decimal import Decimal
+
 from stackin import Invoice, DocumentType, Address
 from stackin.br import Product  # Brazil-specific line item — NCM/CFOP
 
@@ -61,7 +129,16 @@ client.issue(
     document_type=DocumentType.NFE,
     client_name="Buyer Company Ltd",
     tax_id="11111111111111",
-    items=[Product(description="Test product", amount=100.00, ncm="84713012", cfop="5102")],
+    items=[
+        Product(
+            description="Teclado",
+            quantity=Decimal("2"),
+            unit_price=Decimal("120.00"),
+            unit="UN",
+            ncm="84716052",
+            cfop="5102",
+        )
+    ],
     recipient_address=Address(
         street="Avenida Atlantica",
         number="500",
