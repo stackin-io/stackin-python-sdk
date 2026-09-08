@@ -3,7 +3,15 @@ from decimal import Decimal
 
 from pydantic import ValidationError
 
-from stackin.br import CofinsNt, IcmsSn102, PisNt, PresumedCredit, Product, Tax
+from stackin.br import (
+    CofinsNt,
+    IbsCbs,
+    IcmsSn102,
+    PisNt,
+    PresumedCredit,
+    Product,
+    Tax,
+)
 
 
 class TestProductToDict(unittest.TestCase):
@@ -214,3 +222,58 @@ class TestUnitPrice(unittest.TestCase):
     def test_a_unit_price_of_zero_is_refused_here(self):
         with self.assertRaises(ValidationError):
             Product(description="Servico", unit_price=Decimal("0"))
+
+
+class TestIbsCbs(unittest.TestCase):
+    """The Reforma Tributária group, required from 2026 for regime normal."""
+
+    def group(self, **overrides) -> dict:
+        values = {
+            "cst": "000",
+            "classification": "000001",
+            "rate_state": 0.1,
+            "rate_city": 0.0,
+            "rate_federal": 0.9,
+        }
+        values.update(overrides)
+        return values
+
+    def test_it_nests_under_br_like_every_other_fiscal_field(self):
+        product = Product(
+            description="Teclado",
+            unit_price=Decimal("120.00"),
+            ncm="84716052",
+            cfop="5102",
+            ibs_cbs=IbsCbs(**self.group()),
+        )
+
+        data = product.to_dict()
+
+        self.assertEqual(data["product"]["br"]["ibs_cbs"]["cst"], "000")
+
+    def test_an_item_without_it_sends_nothing(self):
+        """This is what an NF-e looked like before the reform."""
+        product = Product(description="Teclado", unit_price=Decimal("10.00"))
+
+        self.assertNotIn("br", product.to_dict()["product"])
+
+    def test_the_base_is_optional_and_defaults_to_the_item_amount(self):
+        group = IbsCbs(**self.group())
+
+        self.assertIsNone(group.base)
+
+    def test_a_cst_that_is_not_three_digits_is_refused(self):
+        with self.assertRaises(ValidationError):
+            IbsCbs(**self.group(cst="00"))
+
+    def test_a_classification_that_is_not_six_digits_is_refused(self):
+        with self.assertRaises(ValidationError):
+            IbsCbs(**self.group(classification="0001"))
+
+    def test_a_negative_rate_is_refused(self):
+        with self.assertRaises(ValidationError):
+            IbsCbs(**self.group(rate_state=-1))
+
+    def test_a_zero_rate_is_allowed(self):
+        """A municipality with no IBS rate is a real case, not an error."""
+        self.assertEqual(IbsCbs(**self.group(rate_city=0)).rate_city, 0)
