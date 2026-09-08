@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal
 
 from dotenv import load_dotenv
 
@@ -13,7 +14,7 @@ def main():
 
     product = Product(
         description="Produto com encargos adicionais",
-        amount=200.00,
+        unit_price=Decimal("200.00"),
         ncm="94036000",
         cfop="5102",
         freight=15.00,

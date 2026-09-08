@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal
 
 from dotenv import load_dotenv
 
@@ -13,7 +14,7 @@ def main():
 
     product = Product(
         description="Monthly support and maintenance",
-        amount=800.00,
+        unit_price=Decimal("800.00"),
         service_code="1.07",
         service_discount=50.00,
     )

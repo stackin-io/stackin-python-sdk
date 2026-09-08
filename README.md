@@ -108,7 +108,7 @@ invoice = client.issue(
     document_type=DocumentType.NFSE,
     client_name="John Doe",
     tax_id="00000000000",
-    items=[Product(description="Software development", amount=5000.00)],
+    items=[Product(description="Software development", unit_price=Decimal("5000.00"))],
 )
 
 status = client.consult("ACCESS_KEY...", document_type=DocumentType.NFSE)
@@ -165,13 +165,15 @@ burned, and undoing it means cancelling, which has a deadline.
 Pass `idempotency_key` to make the retry safe:
 
 ```python
+from decimal import Decimal
+
 key = str(uuid.uuid4())
 
 result = invoice.issue(
     document_type=DocumentType.NFSE,
     client_name="Maria Silva",
     tax_id="12345678909",
-    items=[Product(description="Consultoria", amount=1500.00)],
+    items=[Product(description="Consultoria", unit_price=Decimal("1500.00"))],
     idempotency_key=key,
 )
 ```

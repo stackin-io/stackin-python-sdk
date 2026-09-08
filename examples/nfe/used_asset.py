@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal
 
 from dotenv import load_dotenv
 
@@ -13,7 +14,7 @@ def main():
 
     product = Product(
         description="Bem movel usado",
-        amount=500.00,
+        unit_price=Decimal("500.00"),
         ncm="87032310",
         cfop="5102",
         used_movable_asset=True,

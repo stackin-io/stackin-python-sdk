@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal
 
 from dotenv import load_dotenv
 
@@ -13,7 +14,7 @@ def main():
 
     product = Product(
         description="Software development SDK Python",
-        amount=5000.00,
+        unit_price=Decimal("5000.00"),
     )
 
     result = client.issue(

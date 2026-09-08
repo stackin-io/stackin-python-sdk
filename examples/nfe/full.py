@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal
 
 from dotenv import load_dotenv
 
@@ -13,7 +14,7 @@ def main():
 
     product = Product(
         description="Produto completo - todos os campos",
-        amount=999.99,
+        unit_price=Decimal("999.99"),
         ncm="84713012",
         cfop="5102",
         unit="UN",
@@ -25,7 +26,9 @@ def main():
         manufacturer_cnpj="12345678000195",
         tax_benefit_code="PR820001",
         presumed_credits=[
-            PresumedCredit(code="PR820001", percentage=3.0, amount=30.00),
+            PresumedCredit(
+                code="PR820001", percentage=3.0, unit_price=Decimal("30.00")
+            ),
         ],
         ex_tipi="01",
         freight=20.00,

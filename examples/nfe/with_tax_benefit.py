@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal
 
 from dotenv import load_dotenv
 
@@ -13,13 +14,15 @@ def main():
 
     product = Product(
         description="Produto com beneficio fiscal",
-        amount=80.00,
+        unit_price=Decimal("80.00"),
         ncm="22021000",
         cfop="5102",
         cest="0300700",
         tax_benefit_code="PR820001",
         presumed_credits=[
-            PresumedCredit(code="PR820001", percentage=3.0, amount=2.40),
+            PresumedCredit(
+                code="PR820001", percentage=3.0, unit_price=Decimal("2.40")
+            ),
         ],
     )
 
