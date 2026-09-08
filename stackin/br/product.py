@@ -10,6 +10,17 @@ from pydantic import BaseModel, Field
 from stackin.br.tax import Tax
 
 
+class IbsCbs(BaseModel):
+    """The Reforma Tributária group for one item."""
+
+    cst: str = Field(pattern=r"^\d{3}$")
+    classification: str = Field(pattern=r"^\d{6}$")
+    base: float | None = Field(default=None, gt=0)
+    rate_state: float = Field(ge=0)
+    rate_city: float = Field(ge=0)
+    rate_federal: float = Field(ge=0)
+
+
 class PresumedCredit(BaseModel):
     """A presumed tax credit applied to this item."""
 
@@ -33,6 +44,7 @@ _BR_FIELDS = {
     "import_content_control_number",
     "recopi_number",
     "extra_groups",
+    "ibs_cbs",
     "tax",
 }
 
@@ -80,6 +92,7 @@ class Product(BaseModel):
         ),
     )
     recopi_number: str | None = Field(default=None, pattern=r"^\d{20}$")
+    ibs_cbs: IbsCbs | None = Field(default=None)
     extra_groups: dict[str, Any] | None = Field(default=None)
     tax: Tax | dict[str, Any] | None = Field(default=None)
 
