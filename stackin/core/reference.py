@@ -8,8 +8,24 @@ reaches a classification published after this release without one.
 from __future__ import annotations
 
 from typing import Any, cast
+from urllib.parse import quote
 
 from stackin.core.client import _Client
+from stackin.core.types import Environment
+
+
+def _segment(value: str) -> str:
+    """One path segment, escaped, refusing what would leave it.
+
+    `safe=""` because a code the caller typed may hold a `/`. The dot
+    segments need refusing rather than escaping: RFC 3986 calls `.`
+    unreserved, so `quote` leaves it alone and the HTTP client then
+    collapses `..` into a different endpoint.
+    """
+    if value in ("", ".", ".."):
+        raise ValueError(f"{value!r} is not a usable path segment")
+    return quote(value, safe="")
+
 
 KINDS = (
     "cfop",
@@ -37,7 +53,8 @@ class Kind:
             dict,
             self._client._request(
                 "GET",
-                f"/fiscal-references/{self.name}/{code}",
+                f"/fiscal-references/{_segment(self.name)}"
+                f"/{_segment(code)}",
                 params={"country": country or self.country},
             ),
         )
@@ -94,8 +111,15 @@ def _search(
 class FiscalReference(_Client):
     """Client for the published fiscal classification tables."""
 
-    def __init__(self, *args: Any, country: str = "BR", **kwargs: Any):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        base_url: str | None = None,
+        environment: Environment | str | None = None,
+        api_key: str | None = None,
+        timeout: int = 30,
+        country: str = "BR",
+    ) -> None:
+        super().__init__(base_url, environment, api_key, timeout)
         self.country = country
 
         self.cfop = Kind(self, "cfop", country)

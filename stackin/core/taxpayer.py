@@ -10,16 +10,25 @@ with FiscalReference, not "just by name", not "just within one state".
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import cast
 
 from stackin.core.client import _Client
+from stackin.core.reference import _segment
+from stackin.core.types import Environment
 
 
 class Taxpayer(_Client):
     """Client for the taxpayer registry."""
 
-    def __init__(self, *args: Any, country: str = "BR", **kwargs: Any):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        base_url: str | None = None,
+        environment: Environment | str | None = None,
+        api_key: str | None = None,
+        timeout: int = 30,
+        country: str = "BR",
+    ) -> None:
+        super().__init__(base_url, environment, api_key, timeout)
         self.country = country
 
     def get(self, tax_id: str, *, country: str | None = None) -> dict:
@@ -34,7 +43,7 @@ class Taxpayer(_Client):
             dict,
             self._request(
                 "GET",
-                f"/taxpayers/{tax_id}",
+                f"/taxpayers/{_segment(tax_id)}",
                 params={"country": country or self.country},
             ),
         )
