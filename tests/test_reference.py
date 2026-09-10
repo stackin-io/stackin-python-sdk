@@ -164,3 +164,41 @@ class KindsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PathEscapingTest(unittest.TestCase):
+    """A code the caller types by hand must not rewrite the path."""
+
+    def test_a_slash_in_a_code_stays_inside_its_segment(self):
+        client = _client()
+
+        with patch("stackin.core.client.requests.request") as request:
+            request.return_value = FakeResponse(payload={})
+            client.ncm.get("8471/60/52")
+
+        self.assertEqual(
+            request.call_args[0][1],
+            "https://sdk.test/api/v1/fiscal-references/ncm/8471%2F60%2F52",
+        )
+
+    def test_a_kind_cannot_climb_out_of_its_endpoint(self):
+        """`..` is unreserved, so escaping it is not enough."""
+        client = _client()
+
+        with self.assertRaises(ValueError):
+            client.kind("..").get("kinds")
+
+    def test_an_empty_code_is_refused_rather_than_dropped(self):
+        client = _client()
+
+        with self.assertRaises(ValueError):
+            client.ncm.get("")
+
+
+class ConstructorTest(unittest.TestCase):
+    def test_country_is_the_fifth_parameter_not_the_second(self):
+        """FiscalReference("https://x", "AR") used to discard "AR"."""
+        client = FiscalReference("https://x", None, "k", 30, "AR")
+
+        self.assertEqual(client.country, "AR")
+        self.assertEqual(client.ncm.country, "AR")

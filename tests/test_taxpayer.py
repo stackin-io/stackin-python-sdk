@@ -61,3 +61,32 @@ class SurfaceTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PathEscapingTest(unittest.TestCase):
+    """A CNPJ is displayed with a slash; it must not rewrite the path."""
+
+    def test_a_formatted_cnpj_stays_inside_its_segment(self):
+        client = _client()
+
+        with patch("stackin.core.client.requests.request") as request:
+            request.return_value = FakeResponse(payload={})
+            client.get("00.000.000/0001-91")
+
+        self.assertEqual(
+            request.call_args[0][1],
+            "https://sdk.test/api/v1/taxpayers/00.000.000%2F0001-91",
+        )
+
+    def test_an_empty_tax_id_is_refused_rather_than_dropped(self):
+        client = _client()
+
+        with self.assertRaises(ValueError):
+            client.get("")
+
+
+class ConstructorTest(unittest.TestCase):
+    def test_country_is_the_fifth_parameter_not_the_second(self):
+        client = Taxpayer("https://x", None, "k", 30, "AR")
+
+        self.assertEqual(client.country, "AR")
