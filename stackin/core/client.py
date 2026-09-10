@@ -63,8 +63,13 @@ def _validate_nfe_address(address: Address | None) -> None:
         )
 
 
-class Invoice:
-    """Client for issuing, consulting, and cancelling fiscal documents."""
+class _Client:
+    """Where an api_key becomes an HTTP call, for every entry point.
+
+    Lives here rather than in a module of its own because the tests
+    patch `stackin.core.client.requests`, and so every request the SDK
+    makes has to be issued from this module.
+    """
 
     def __init__(
         self,
@@ -77,6 +82,77 @@ class Invoice:
         self.base_url = resolved_url.rstrip("/")
         self.api_key = api_key or os.environ.get("STACKIN_API_KEY")
         self.timeout = timeout
+
+    def _headers(self, idempotency_key: str | None = None) -> dict:
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        if idempotency_key:
+            headers["Idempotency-Key"] = idempotency_key
+        return headers
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        json: dict | None = None,
+        params: dict | None = None,
+        idempotency_key: str | None = None,
+    ) -> Any:
+        response = self._send(
+            method,
+            path,
+            json=json,
+            params=params,
+            idempotency_key=idempotency_key,
+        )
+        try:
+            body = response.json() if response.content else {}
+        except ValueError:
+            body = {}
+        if isinstance(body, dict):
+            return body.get("result", body)
+        return body
+
+    def _send(
+        self,
+        method: str,
+        path: str,
+        *,
+        json: dict | None = None,
+        params: dict | None = None,
+        idempotency_key: str | None = None,
+    ) -> requests.Response:
+        url = f"{self.base_url}/api/v1{path}"
+
+        try:
+            response = requests.request(
+                method,
+                url,
+                json=json,
+                params=params,
+                headers=self._headers(idempotency_key),
+                timeout=self.timeout,
+            )
+        except requests.RequestException as error:
+            raise ConnectionFailedError(str(error)) from error
+
+        if not response.ok:
+            try:
+                body = response.json() if response.content else {}
+            except ValueError:
+                body = {}
+            raise APIError(
+                status_code=response.status_code,
+                detail=body.get("detail", response.text),
+            )
+
+        return response
+
+
+class Invoice(_Client):
+    """Client for issuing, consulting, and cancelling fiscal documents."""
 
     def issue(
         self,
@@ -328,70 +404,3 @@ class Invoice:
             f"/received-invoices/{access_key}/manifestation",
             json=payload,
         )
-
-    def _headers(self, idempotency_key: str | None = None) -> dict:
-        headers = {}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        if idempotency_key:
-            headers["Idempotency-Key"] = idempotency_key
-        return headers
-
-    def _request(
-        self,
-        method: str,
-        path: str,
-        *,
-        json: dict | None = None,
-        params: dict | None = None,
-        idempotency_key: str | None = None,
-    ) -> Any:
-        response = self._send(
-            method,
-            path,
-            json=json,
-            params=params,
-            idempotency_key=idempotency_key,
-        )
-        try:
-            body = response.json() if response.content else {}
-        except ValueError:
-            body = {}
-        if isinstance(body, dict):
-            return body.get("result", body)
-        return body
-
-    def _send(
-        self,
-        method: str,
-        path: str,
-        *,
-        json: dict | None = None,
-        params: dict | None = None,
-        idempotency_key: str | None = None,
-    ) -> requests.Response:
-        url = f"{self.base_url}/api/v1{path}"
-
-        try:
-            response = requests.request(
-                method,
-                url,
-                json=json,
-                params=params,
-                headers=self._headers(idempotency_key),
-                timeout=self.timeout,
-            )
-        except requests.RequestException as error:
-            raise ConnectionFailedError(str(error)) from error
-
-        if not response.ok:
-            try:
-                body = response.json() if response.content else {}
-            except ValueError:
-                body = {}
-            raise APIError(
-                status_code=response.status_code,
-                detail=body.get("detail", response.text),
-            )
-
-        return response
