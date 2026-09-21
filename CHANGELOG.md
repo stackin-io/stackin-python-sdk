@@ -1,5 +1,13 @@
 # Changelog — invoice (SDK)
 
+## Unreleased
+
+### Added
+- `external_reference` on `issue()` — the caller's own id for the document, returned on every read and webhook.
+
+### Changed
+- `city_code` is no longer required on an NFE `recipient_address`; the API resolves it from city and state.
+
 ## 0.1.2
 
 ### Changed
