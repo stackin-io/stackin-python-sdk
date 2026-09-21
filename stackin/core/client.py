@@ -44,7 +44,6 @@ _NFE_ADDRESS_FIELDS = (
     "city",
     "state",
     "zip_code",
-    "city_code",
 )
 
 
@@ -164,9 +163,16 @@ class Invoice(_Client):
         recipient_address: Address | None = None,
         series: str | None = None,
         number: str | None = None,
+        external_reference: str | None = None,
         idempotency_key: str | None = None,
     ) -> dict:
-        """Issues a fiscal document."""
+        """Issues a fiscal document.
+
+        `city_code` may be left off the address: the API resolves the
+        IBGE code from city and state. `external_reference` is the
+        caller's own id for the document, an order number say, returned
+        on every read and webhook.
+        """
         if not items:
             raise ValueError("items can't be empty")
 
@@ -192,6 +198,8 @@ class Invoice(_Client):
             payload["series"] = series
         if number:
             payload["number"] = number
+        if external_reference:
+            payload["external_reference"] = external_reference
 
         return self._request(
             "POST",

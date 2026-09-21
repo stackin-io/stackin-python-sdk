@@ -170,7 +170,7 @@ class TestClientIssueValidation(unittest.TestCase):
         item = Product(
             description="Produto", amount=10.0, ncm="12345678", cfop="5102"
         )
-        with self.assertRaisesRegex(ValueError, "city_code"):
+        with self.assertRaisesRegex(ValueError, "street"):
             self.client.issue(
                 document_type=DocumentType.NFE,
                 client_name="Buyer",
@@ -408,6 +408,26 @@ class TestClientIdempotency(unittest.TestCase):
 
         _, kwargs = mock_request.call_args
         self.assertEqual(kwargs["headers"]["Idempotency-Key"], "idem-1")
+
+    def test_issue_sends_the_external_reference(self):
+        item = Product(description="Servico", amount=100.0)
+
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"result": {"access_key": "abc"}}
+            )
+            self.client.issue(
+                document_type=DocumentType.NFSE,
+                client_name="Buyer",
+                tax_id="123",
+                items=[item],
+                external_reference="nuvemshop:1:order:1234",
+            )
+
+        _, kwargs = mock_request.call_args
+        self.assertEqual(
+            kwargs["json"]["external_reference"], "nuvemshop:1:order:1234"
+        )
 
     def test_issue_omits_the_header_by_default(self):
         item = Product(description="Servico", amount=100.0)
