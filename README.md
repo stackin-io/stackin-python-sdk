@@ -211,7 +211,7 @@ result = invoice.correct(
 )
 ```
 
-The correction text is 15 to 1000 characters, checked locally before the call.
+The correction text is 15 to 1000 characters and the access key must be the NF-e's 44 digits, both checked locally before the call — an NFS-e has no correction letter (cancel and reissue it instead).
 
 What a CC-e **cannot** fix: anything that changes the tax owed (base, rate,
 price, quantity, totals), the buyer or the seller, or the issue date. Those
@@ -320,6 +320,7 @@ Three things worth knowing before you loop:
 - `stackin.APIError` — the API responded with a non-2xx status (`status_code`, `detail`) — a 401 here means `api_key` is missing, wrong, or was rotated.
 - `stackin.ConnectionFailedError` — the API didn't respond (network/DNS/timeout).
 - `ValueError` — `issue()`'s `items` is empty, missing `ncm`/`cfop` on an item for NFE, an item `description` over 120 characters on NFE (the `xProd` limit; NFSE has no such limit), any string in an NFE request with a character outside ISO-8859-1 (latin1, U+0020..U+00FF — an emoji, a curly quote, an em dash, a line break; the error names the field), or a missing/incomplete `recipient_address` on NFE.
+- `ValueError` — `correct()` with an access key that is not the NF-e's 44 digits: a correction letter exists only on NF-e; an NFS-e is cancelled and reissued instead.
 - `pydantic.ValidationError` (a `ValueError`) — a model built with a value the NF-e 4.00 XSD refuses: an `ncm` that is not 8 digits, a `barcode` that is not `SEM GTIN` or an 8/12/13/14-digit GTIN with a valid GS1 check digit, or an `Address` `street`/`neighborhood` under 2 characters once trimmed.
 
 Building the full fiscal document (issuer data, service code, tax groups, schema-accurate XML) is the API's job — configured once per company, not passed on every call.
