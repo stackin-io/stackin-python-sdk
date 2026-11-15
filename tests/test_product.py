@@ -301,3 +301,28 @@ class TestNcm(unittest.TestCase):
         for ncm in ("8471301", "847130120", "8471301A"):
             with self.subTest(ncm=ncm), self.assertRaises(ValidationError):
                 Product(description="Teclado", ncm=ncm)
+
+
+class TestBarcodeFormat(unittest.TestCase):
+    """cEAN as the NF-e 4.00 XSD defines it."""
+
+    def test_sem_gtin_is_accepted(self):
+        product = Product(description="Teclado", barcode="SEM GTIN")
+
+        self.assertEqual(product.barcode, "SEM GTIN")
+
+    def test_a_gtin_of_8_12_13_or_14_digits_is_accepted(self):
+        for barcode in (
+            "96385074",
+            "036000291452",
+            "7891000100103",
+            "17891234567892",
+        ):
+            with self.subTest(barcode=barcode):
+                product = Product(description="Teclado", barcode=barcode)
+                self.assertEqual(product.barcode, barcode)
+
+    def test_any_other_shape_is_refused(self):
+        for barcode in ("", "1234567", "123456789", "12345678901", "SEM"):
+            with self.subTest(barcode=barcode), self.assertRaises(ValidationError):
+                Product(description="Teclado", barcode=barcode)
