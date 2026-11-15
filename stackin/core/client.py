@@ -61,6 +61,30 @@ def _validate_nfe_address(address: Address | None) -> None:
         )
 
 
+_NFSE_RETAINED_ADDRESS_FIELDS = tuple(
+    field for field in _NFE_ADDRESS_FIELDS if field != "city_code"
+)
+
+
+def _validate_nfse_retained_address(address: Address | None) -> None:
+    """Retained ISSQN needs the tomador's address — the authorizer refuses
+    the document without it (E0237). Every field but city_code."""
+    if address is None:
+        raise ValueError(
+            "recipient_address is required on an NFS-e when any item "
+            "has tax_retained=true (ISSQN retained by the tomador)"
+        )
+
+    missing = [
+        field for field in _NFSE_RETAINED_ADDRESS_FIELDS if not getattr(address, field)
+    ]
+    if missing:
+        raise ValueError(
+            "recipient_address is missing required fields for NFSE with "
+            "tax_retained=true: " + ", ".join(missing)
+        )
+
+
 class _Client:
     """Where an api_key becomes an HTTP call, for every entry point.
 
@@ -176,12 +200,8 @@ class Invoice(_Client):
                     raise ValueError(f"items[{index}].cfop is required for NFE")
             _validate_nfe_address(recipient_address)
         retained = any(item.tax_retained for item in items)
-        is_nfse = document_type is DocumentType.NFSE
-        if is_nfse and retained and recipient_address is None:
-            raise ValueError(
-                "recipient_address is required on an NFS-e when any item "
-                "has tax_retained=true (ISSQN retained by the tomador)"
-            )
+        if document_type is DocumentType.NFSE and retained:
+            _validate_nfse_retained_address(recipient_address)
 
         payload: dict[str, Any] = {
             "document_type": document_type.value,

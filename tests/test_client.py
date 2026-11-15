@@ -205,9 +205,36 @@ class TestClientRetainedIss(unittest.TestCase):
     def test_retained_with_an_address_is_sent(self):
         item = Product(description="Suporte", amount=5.0, tax_retained=True)
 
-        mock_request = self.issue([item], Address(state="SP"))
+        address = Address(
+            street="Rua das Flores",
+            number="123",
+            neighborhood="Centro",
+            city="Sao Paulo",
+            state="SP",
+            zip_code="01310100",
+        )
+
+        mock_request = self.issue([item], address)
 
         mock_request.assert_called_once()
+
+    def test_retained_with_a_partial_address_is_refused(self):
+        item = Product(description="Suporte", amount=5.0, tax_retained=True)
+        with patch("stackin.core.client.requests.request") as mock_request:
+            with self.assertRaises(ValueError) as raised:
+                self.client.issue(
+                    document_type=DocumentType.NFSE,
+                    client_name="Buyer",
+                    tax_id="123",
+                    items=[item],
+                    recipient_address=Address(state="SP", city="Sao Paulo"),
+                )
+            mock_request.assert_not_called()
+        self.assertEqual(
+            str(raised.exception),
+            "recipient_address is missing required fields for NFSE with "
+            "tax_retained=true: street, number, neighborhood, zip_code",
+        )
 
     def test_not_retained_needs_no_address(self):
         item = Product(description="Suporte", amount=5.0)
