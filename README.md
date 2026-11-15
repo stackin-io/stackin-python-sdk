@@ -222,8 +222,15 @@ The original document does not change — the CC-e is an event attached to it, a
 the authorized XML stays as it was. A document accepts at most 20 of them, and
 they are numbered for you.
 
-**NF-e only.** NFS-e has no correction letter, and asking for one returns
-a `409`.
+**NF-e only.** NFS-e has no correction letter — cancel and reissue it instead.
+The access key says which one it is: an NF-e access key is 44 characters, an
+NFS-e key 50. A key that is not an NF-e access key (44 characters: digits, with
+uppercase letters allowed in the first 12 positions of the issuer CNPJ, which
+can be alphanumeric from July 2026) raises a `ValueError` locally, before the call:
+`correct is NFe only. NFSe has no correction letter — cancel and reissue instead.`
+What only the API can know stays an `APIError` with status `409`: an NF-e key
+sent with `document_type=DocumentType.NFSE`, or a key for a document the API
+does not hold.
 
 ## Invalidating unused numbers
 
@@ -320,6 +327,7 @@ Three things worth knowing before you loop:
 - `stackin.APIError` — the API responded with a non-2xx status (`status_code`, `detail`) — a 401 here means `api_key` is missing, wrong, or was rotated.
 - `stackin.ConnectionFailedError` — the API didn't respond (network/DNS/timeout).
 - `ValueError` — `issue()`'s `items` is empty, missing `ncm`/`cfop` on an item for NFE, an item `description` over 120 characters on NFE (the `xProd` limit; NFSE has no such limit), any string in an NFE request with a character the NF-e cannot carry (outside ISO-8859-1, latin1: an emoji, CJK, Cyrillic…; the error names the field — typographic quotes, dashes, ellipsis, bullet, `€` and `™` are not refused, the API converts them and folds tabs and line breaks into a space), or a missing/incomplete `recipient_address` on NFE.
+- `ValueError` — `correct()` with a key that is not an NF-e access key (44 characters): a correction letter exists only on NF-e; an NFS-e is cancelled and reissued instead. An NF-e key sent with `DocumentType.NFSE`, or one the API does not hold, is an `APIError` 409, not a `ValueError`.
 - `pydantic.ValidationError` (a `ValueError`) — a model built with a value the NF-e 4.00 XSD refuses: an `ncm` that is not 8 digits (or `00` for a service line), a `barcode` that is not `SEM GTIN` or an 8/12/13/14-digit GTIN with a valid GS1 check digit, or an `Address` `street`/`neighborhood` under 2 characters once trimmed.
 
 Building the full fiscal document (issuer data, service code, tax groups, schema-accurate XML) is the API's job — configured once per company, not passed on every call.
