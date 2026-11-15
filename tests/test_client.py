@@ -224,6 +224,93 @@ class TestClientIssueValidation(unittest.TestCase):
             )
 
 
+class TestClientLatin1(unittest.TestCase):
+    """NF-e travels as ISO-8859-1; anything outside it is refused here."""
+
+    def setUp(self):
+        self.client = Invoice(api_key="test-key")
+        self.address = {
+            "street": "Avenida Atlantica",
+            "number": "1702",
+            "neighborhood": "Copacabana",
+            "city": "Rio de Janeiro",
+            "state": "RJ",
+            "zip_code": "22021001",
+            "city_code": "3304557",
+        }
+
+    def issue(self, document_type=DocumentType.NFE, **overrides):
+        item_fields = {
+            "description": "Cafe torrado",
+            "amount": 10.0,
+            "ncm": "12345678",
+            "cfop": "5102",
+        }
+        item_fields.update(overrides.pop("item", {}))
+        address = {**self.address, **overrides.pop("address", {})}
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                200, json_data={"result": {}}
+            )
+            self.client.issue(
+                document_type=document_type,
+                client_name=overrides.pop("client_name", "Buyer"),
+                tax_id="123",
+                items=[Product(**item_fields)],
+                recipient_address=Address(**address),
+            )
+        return mock_request
+
+    def test_accented_portuguese_is_accepted(self):
+        mock_request = self.issue(
+            client_name="Joao da Conceicao Sao",
+            item={"description": "Cafe com acucar e pao - ação"},
+            address={"street": "Rua Ipe Amarelo nº 3"},
+        )
+
+        mock_request.assert_called_once()
+
+    def test_an_emoji_in_the_description_is_refused(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"items\[0\]\.description contains a character outside "
+            r"ISO-8859-1 \(latin1\), which NF-e does not accept: '\U0001f600'",
+        ):
+            self.issue(item={"description": "Cafe \U0001f600"})
+
+    def test_the_client_name_is_checked(self):
+        with self.assertRaisesRegex(ValueError, "^client_name contains"):
+            self.issue(client_name="Buyer \u2014 Ltda")
+
+    def test_every_address_field_is_checked(self):
+        with self.assertRaisesRegex(
+            ValueError, r"^recipient_address\.city contains .*'\u2019'"
+        ):
+            self.issue(address={"city": "Santa Barbara d\u2019Oeste"})
+
+    def test_the_unit_and_purchase_order_are_checked(self):
+        with self.assertRaisesRegex(
+            ValueError, r"^items\[0\]\.product\.unit contains"
+        ):
+            self.issue(item={"unit": "m\u00b3\u2009"})
+        with self.assertRaisesRegex(
+            ValueError, r"^items\[0\]\.product\.purchase_order contains"
+        ):
+            self.issue(item={"purchase_order": "PO\u20ac1"})
+
+    def test_a_control_character_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "outside ISO-8859-1"):
+            self.issue(item={"description": "linha\num"})
+
+    def test_nfse_is_not_checked(self):
+        mock_request = self.issue(
+            document_type=DocumentType.NFSE,
+            item={"description": "Consultoria \U0001f600"},
+        )
+
+        mock_request.assert_called_once()
+
+
 class TestClientIssue(unittest.TestCase):
     def setUp(self):
         self.client = Invoice(api_key="test-key")

@@ -65,6 +65,40 @@ def _validate_nfe_address(address: Address | None) -> None:
         )
 
 
+def _first_non_latin1(value: Any, path: str) -> tuple[str, str] | None:
+    """The first string in `value` outside U+0020..U+00FF, with its path."""
+    if isinstance(value, str):
+        for char in value:
+            if not "\u0020" <= char <= "\u00ff":
+                return path, char
+        return None
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            child = f"{path}.{key}" if path else str(key)
+            if found := _first_non_latin1(nested, child):
+                return found
+        return None
+    if isinstance(value, (list, tuple)):
+        for index, nested in enumerate(value):
+            if found := _first_non_latin1(nested, f"{path}[{index}]"):
+                return found
+    return None
+
+
+def _validate_nfe_latin1(payload: dict) -> None:
+    """NF-e is encoded in ISO-8859-1; the SEFAZ refuses anything else.
+
+    Walks every string the request would carry, so a free-text field
+    added later is covered without being listed here.
+    """
+    if found := _first_non_latin1(payload, ""):
+        path, char = found
+        raise ValueError(
+            f"{path} contains a character outside ISO-8859-1 (latin1), "
+            f"which NF-e does not accept: '{char}'"
+        )
+
+
 class _Client:
     """Where an api_key becomes an HTTP call, for every entry point.
 
@@ -199,6 +233,8 @@ class Invoice(_Client):
             payload["series"] = series
         if number:
             payload["number"] = number
+        if document_type is DocumentType.NFE:
+            _validate_nfe_latin1(payload)
 
         return self._request(
             "POST",
