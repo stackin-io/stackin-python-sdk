@@ -140,6 +140,43 @@ class TestClientIssueValidation(unittest.TestCase):
                 items=[item],
             )
 
+    def test_rejects_a_description_over_120_characters_on_nfe(self):
+        item = Product(description="a" * 121, amount=10.0, ncm="12345678", cfop="5102")
+        with self.assertRaisesRegex(
+            ValueError,
+            r"items\[0\]\.description exceeds 120 characters \(NF-e xProd limit\)",
+        ):
+            self.client.issue(
+                document_type=DocumentType.NFE,
+                client_name="Buyer",
+                tax_id="123",
+                items=[item],
+            )
+
+    def test_accepts_a_description_of_120_characters_on_nfe(self):
+        item = Product(description="a" * 120, amount=10.0, ncm="12345678", cfop="5102")
+        with self.assertRaisesRegex(
+            ValueError, "recipient_address is required for NFE"
+        ):
+            self.client.issue(
+                document_type=DocumentType.NFE,
+                client_name="Buyer",
+                tax_id="123",
+                items=[item],
+            )
+
+    def test_nfse_descriptions_are_not_limited_to_120(self):
+        item = Product(description="a" * 500, amount=10.0)
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(200, json_data={"result": {}})
+            self.client.issue(
+                document_type=DocumentType.NFSE,
+                client_name="Buyer",
+                tax_id="123",
+                items=[item],
+            )
+        mock_request.assert_called_once()
+
     def test_requires_recipient_address_for_nfe(self):
         item = Product(description="Produto", amount=10.0, ncm="12345678", cfop="5102")
         with self.assertRaisesRegex(

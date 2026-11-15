@@ -277,3 +277,52 @@ class TestIbsCbs(unittest.TestCase):
     def test_a_zero_rate_is_allowed(self):
         """A municipality with no IBS rate is a real case, not an error."""
         self.assertEqual(IbsCbs(**self.group(rate_city=0)).rate_city, 0)
+
+
+class TestNcm(unittest.TestCase):
+    """The full 8 digits, or 00 for a service line; else SEFAZ 777."""
+
+    def test_an_eight_digit_ncm_is_accepted(self):
+        product = Product(description="Teclado", ncm="84713012")
+
+        self.assertEqual(product.ncm, "84713012")
+
+    def test_00_for_a_service_line_is_accepted(self):
+        product = Product(description="Instalacao", ncm="00")
+
+        self.assertEqual(product.ncm, "00")
+
+    def test_a_two_digit_chapter_is_refused(self):
+        for ncm in ("84", "12"):
+            with self.subTest(ncm=ncm), self.assertRaises(ValidationError):
+                Product(description="Teclado", ncm=ncm)
+
+    def test_any_other_length_is_refused(self):
+        for ncm in ("8471301", "847130120", "8471301A"):
+            with self.subTest(ncm=ncm), self.assertRaises(ValidationError):
+                Product(description="Teclado", ncm=ncm)
+
+
+class TestBarcodeFormat(unittest.TestCase):
+    """cEAN as the NF-e 4.00 XSD defines it."""
+
+    def test_sem_gtin_is_accepted(self):
+        product = Product(description="Teclado", barcode="SEM GTIN")
+
+        self.assertEqual(product.barcode, "SEM GTIN")
+
+    def test_a_gtin_of_8_12_13_or_14_digits_is_accepted(self):
+        for barcode in (
+            "96385074",
+            "036000291452",
+            "7891000100103",
+            "17891234567892",
+        ):
+            with self.subTest(barcode=barcode):
+                product = Product(description="Teclado", barcode=barcode)
+                self.assertEqual(product.barcode, barcode)
+
+    def test_any_other_shape_is_refused(self):
+        for barcode in ("", "1234567", "123456789", "12345678901", "SEM"):
+            with self.subTest(barcode=barcode), self.assertRaises(ValidationError):
+                Product(description="Teclado", barcode=barcode)
