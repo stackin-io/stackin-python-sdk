@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 
 import requests
@@ -36,6 +37,8 @@ def _resolve_base_url(
         return _ENVIRONMENT_URLS[Environment(env_name)]
     return DEFAULT_BASE_URL
 
+
+_NFE_ACCESS_KEY = re.compile(r"\d{44}", re.ASCII)
 
 _NFE_ADDRESS_FIELDS = (
     "street",
@@ -268,7 +271,16 @@ class Invoice(_Client):
         document_type: DocumentType,
         correction: str,
     ) -> dict:
-        """Files a correction letter (CC-e) against an issued document."""
+        """Files a correction letter (CC-e) against an issued NF-e.
+
+        Only an NF-e has one, so the access key must be the NF-e's 44
+        digits; an NFS-e is cancelled and issued again instead.
+        """
+        if not _NFE_ACCESS_KEY.fullmatch(access_key):
+            raise ValueError(
+                "correct is NFe only. NFSe has no correction letter — "
+                "cancel and reissue instead."
+            )
         if not 15 <= len(correction) <= 1000:
             raise ValueError("correction must be 15 to 1000 characters")
 

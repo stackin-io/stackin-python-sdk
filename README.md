@@ -211,7 +211,7 @@ result = invoice.correct(
 )
 ```
 
-The correction text is 15 to 1000 characters, checked locally before the call.
+The correction text is 15 to 1000 characters and the access key must be the NF-e's 44 digits, both checked locally before the call — an NFS-e has no correction letter (cancel and reissue it instead).
 
 What a CC-e **cannot** fix: anything that changes the tax owed (base, rate,
 price, quantity, totals), the buyer or the seller, or the issue date. Those
@@ -320,6 +320,7 @@ Three things worth knowing before you loop:
 - `stackin.APIError` — the API responded with a non-2xx status (`status_code`, `detail`) — a 401 here means `api_key` is missing, wrong, or was rotated.
 - `stackin.ConnectionFailedError` — the API didn't respond (network/DNS/timeout).
 - `ValueError` — `issue()`'s `items` is empty, missing `ncm`/`cfop` on an item for NFE, or a missing/incomplete `recipient_address` on NFE.
+- `ValueError` — `correct()` with an access key that is not the NF-e's 44 digits: a correction letter exists only on NF-e; an NFS-e is cancelled and reissued instead.
 
 Building the full fiscal document (issuer data, service code, tax groups, schema-accurate XML) is the API's job — configured once per company, not passed on every call.
 

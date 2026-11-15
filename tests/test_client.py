@@ -345,6 +345,7 @@ class TestClientCorrect(unittest.TestCase):
     def setUp(self):
         self.client = Invoice(api_key="test-key")
         self.text = "Transportadora corrigida para Rapido Ltda"
+        self.key = "35" + "0" * 42
 
     def test_posts_to_the_correction_path(self):
         with patch("stackin.core.client.requests.request") as mock_request:
@@ -352,14 +353,14 @@ class TestClientCorrect(unittest.TestCase):
                 200, json_data={"result": {"status": "authorized"}}
             )
             result = self.client.correct(
-                "abc123",
+                self.key,
                 document_type=DocumentType.NFE,
                 correction=self.text,
             )
 
         args, kwargs = mock_request.call_args
         self.assertEqual(args[0], "POST")
-        self.assertTrue(args[1].endswith("/invoices/abc123/correction"))
+        self.assertTrue(args[1].endswith(f"/invoices/{self.key}/correction"))
         self.assertEqual(
             kwargs["json"],
             {"document_type": "nfe", "correction": self.text},
@@ -370,7 +371,7 @@ class TestClientCorrect(unittest.TestCase):
         with patch("stackin.core.client.requests.request") as mock_request:
             with self.assertRaises(ValueError):
                 self.client.correct(
-                    "abc123",
+                    self.key,
                     document_type=DocumentType.NFE,
                     correction="curto demais",
                 )
@@ -380,11 +381,30 @@ class TestClientCorrect(unittest.TestCase):
         with patch("stackin.core.client.requests.request") as mock_request:
             with self.assertRaises(ValueError):
                 self.client.correct(
-                    "abc123",
+                    self.key,
                     document_type=DocumentType.NFE,
                     correction="a" * 1001,
                 )
             mock_request.assert_not_called()
+
+    def test_rejects_a_key_that_is_not_44_digits(self):
+        message = (
+            "correct is NFe only. NFSe has no correction letter — "
+            "cancel and reissue instead."
+        )
+        for key in ("3" * 50, "3" * 43, "3" * 45, "abc123", "3" * 43 + "A"):
+            with (
+                self.subTest(key=key),
+                patch("stackin.core.client.requests.request") as mock_request,
+            ):
+                with self.assertRaises(ValueError) as raised:
+                    self.client.correct(
+                        key,
+                        document_type=DocumentType.NFE,
+                        correction=self.text,
+                    )
+                self.assertEqual(str(raised.exception), message)
+                mock_request.assert_not_called()
 
 
 class TestClientIdempotency(unittest.TestCase):
