@@ -36,9 +36,7 @@ class TestTaxToDict(unittest.TestCase):
         self.assertEqual(Tax().to_dict(), {})
 
     def test_with_v_tot_trib(self):
-        self.assertEqual(
-            Tax(v_tot_trib="10.00").to_dict(), {"v_tot_trib": "10.00"}
-        )
+        self.assertEqual(Tax(v_tot_trib="10.00").to_dict(), {"v_tot_trib": "10.00"})
 
     def test_icms00_is_emitted_bare(self):
         tax = Tax(
@@ -64,9 +62,7 @@ class TestTaxToDict(unittest.TestCase):
         self.assertEqual(tax.to_dict()["icms"], {"orig": "0", "cst": "60"})
 
     def test_icms_sn101_is_emitted_bare(self):
-        tax = Tax(
-            icms=IcmsSn101(orig="0", p_cred_sn="1.5000", v_cred_icms_sn="0.10")
-        )
+        tax = Tax(icms=IcmsSn101(orig="0", p_cred_sn="1.5000", v_cred_icms_sn="0.10"))
         data = tax.to_dict()
         self.assertEqual(data["icms"]["csosn"], "101")
         self.assertEqual(data["icms"]["p_cred_sn"], "1.5000")
@@ -113,18 +109,14 @@ class TestTaxToDict(unittest.TestCase):
 
     def test_ipi_nt_variant(self):
         tax = Tax(ipi=Ipi(c_enq="999", trib=IpiNt(cst="53")))
-        self.assertEqual(
-            tax.to_dict()["ipi"], {"c_enq": "999", "trib": {"cst": "53"}}
-        )
+        self.assertEqual(tax.to_dict()["ipi"], {"c_enq": "999", "trib": {"cst": "53"}})
 
     def test_ipi_as_raw_dict_passed_through(self):
         tax = Tax(ipi={"c_enq": "999"})
         self.assertEqual(tax.to_dict()["ipi"], {"c_enq": "999"})
 
     def test_pis_aliq_is_emitted_bare(self):
-        tax = Tax(
-            pis=PisAliq(cst="01", v_bc="100.00", p_pis="0.6500", v_pis="0.65")
-        )
+        tax = Tax(pis=PisAliq(cst="01", v_bc="100.00", p_pis="0.6500", v_pis="0.65"))
         self.assertEqual(tax.to_dict()["pis"]["cst"], "01")
 
     def test_pis_nt_is_emitted_bare(self):
@@ -225,9 +217,7 @@ class TestTheGroupsTheLeiauteAddedLater(unittest.TestCase):
     """Monofasico, partilha, substituido and the Simples variants."""
 
     def test_a_monofasico_group_carries_its_own_fields(self):
-        tax = Tax(
-            icms=Icms02(orig="0", ad_rem_icms="0.1234", v_icms_mono="1.23")
-        )
+        tax = Tax(icms=Icms02(orig="0", ad_rem_icms="0.1234", v_icms_mono="1.23"))
 
         self.assertEqual(
             tax.to_dict()["icms"],
@@ -299,15 +289,11 @@ class TestTheGroupsTheLeiauteAddedLater(unittest.TestCase):
 
         for csosn, group in cases.items():
             with self.subTest(csosn):
-                self.assertEqual(
-                    Tax(icms=group).to_dict()["icms"]["csosn"], csosn
-                )
+                self.assertEqual(Tax(icms=group).to_dict()["icms"]["csosn"], csosn)
 
     def test_pis_and_cofins_by_quantity_are_available(self):
         tax = Tax(
-            pis=PisQtde(
-                q_bc_prod="10.0000", v_aliq_prod="0.1000", v_pis="1.00"
-            ),
+            pis=PisQtde(q_bc_prod="10.0000", v_aliq_prod="0.1000", v_pis="1.00"),
             cofins=CofinsQtde(
                 q_bc_prod="10.0000", v_aliq_prod="0.1000", v_cofins="1.00"
             ),
@@ -320,9 +306,7 @@ class TestTheGroupsTheLeiauteAddedLater(unittest.TestCase):
     def test_the_withheld_groups_sit_beside_their_own(self):
         tax = Tax(
             pis_st=PisSt(v_bc="100.00", p_pis="1.65", v_pis="1.65"),
-            cofins_st=CofinsSt(
-                v_bc="100.00", p_cofins="7.60", v_cofins="7.60"
-            ),
+            cofins_st=CofinsSt(v_bc="100.00", p_cofins="7.60", v_cofins="7.60"),
         )
         data = tax.to_dict()
 

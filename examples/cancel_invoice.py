@@ -17,9 +17,7 @@ REASON = "Emitida com dados incorretos do destinatario"
 def main():
     client = Invoice(api_key=os.environ.get("STACKIN_API_KEY"))
     try:
-        result = client.cancel(
-            ACCESS_KEY, document_type=DOCUMENT_TYPE, reason=REASON
-        )
+        result = client.cancel(ACCESS_KEY, document_type=DOCUMENT_TYPE, reason=REASON)
     except ConnectionFailedError:
         print("Could not reach the platform")
         return
