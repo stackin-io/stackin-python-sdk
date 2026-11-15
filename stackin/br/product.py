@@ -71,7 +71,14 @@ class Product(BaseModel):
     purchase_order: str | None = Field(default=None)
     purchase_order_item: str | None = Field(default=None, pattern=r"^\d{1,6}$")
 
-    ncm: str | None = Field(default=None, pattern=r"^\d{2}$|^\d{8}$")
+    ncm: str | None = Field(
+        default=None,
+        pattern=r"^(00|\d{8})$",
+        description=(
+            "The full 8 digits, or 00 for a service line. Any other "
+            "short code the SEFAZ rejects with 777."
+        ),
+    )
     cfop: str | None = Field(default=None, pattern=r"^[123567]\d{3}$")
     cest: str | None = Field(default=None, pattern=r"^\d{7}$")
     nve_codes: list[Annotated[str, Field(pattern=r"^[A-Z]{2}\d{4}$")]] | None = Field(
