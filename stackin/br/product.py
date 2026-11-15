@@ -49,9 +49,6 @@ _BR_FIELDS = {
 }
 
 
-_GTIN_LENGTHS = (8, 12, 13, 14)
-
-
 def _gtin_check_digit_ok(gtin: str) -> bool:
     """GS1 modulo 10: weights 3,1,3,1... from the right, check excluded."""
     body = gtin[-2::-1]
@@ -74,7 +71,11 @@ class Product(BaseModel):
     unit_price: Decimal | None = Field(default=None, gt=0)
     unit: str = Field(default="UN")
     quantity: float = Field(default=1.0, gt=0)
-    barcode: str | None = Field(default=None)
+    barcode: str | None = Field(
+        default=None,
+        pattern=r"^(SEM GTIN|\d{8}|\d{12,14})$",
+        description="cEAN: a GTIN-8/12/13/14, or SEM GTIN.",
+    )
     freight: float | None = Field(default=None)
     insurance: float | None = Field(default=None)
     discount: float | None = Field(default=None)
@@ -83,7 +84,14 @@ class Product(BaseModel):
     purchase_order: str | None = Field(default=None)
     purchase_order_item: str | None = Field(default=None, pattern=r"^\d{1,6}$")
 
-    ncm: str | None = Field(default=None, pattern=r"^\d{2}$|^\d{8}$")
+    ncm: str | None = Field(
+        default=None,
+        pattern=r"^(00|\d{8})$",
+        description=(
+            "The full 8 digits, or 00 for a service line. Any other "
+            "short code the SEFAZ rejects with 777."
+        ),
+    )
     cfop: str | None = Field(default=None, pattern=r"^[123567]\d{3}$")
     cest: str | None = Field(default=None, pattern=r"^\d{7}$")
     nve_codes: list[Annotated[str, Field(pattern=r"^[A-Z]{2}\d{4}$")]] | None = Field(
@@ -119,10 +127,8 @@ class Product(BaseModel):
     @field_validator("barcode")
     @classmethod
     def _valid_gtin_check_digit(cls, value: str | None) -> str | None:
-        """Only a GTIN-8/12/13/14 carries one; SEM GTIN does not."""
+        """Runs after the pattern: SEM GTIN or digits by now."""
         if value is None or not value.isdigit():
-            return value
-        if len(value) not in _GTIN_LENGTHS:
             return value
         if not _gtin_check_digit_ok(value):
             raise ValueError("barcode has an invalid GTIN check digit")

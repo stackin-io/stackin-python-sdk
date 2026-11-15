@@ -37,6 +37,8 @@ def _resolve_base_url(
     return DEFAULT_BASE_URL
 
 
+_NFE_DESCRIPTION_MAX = 120
+
 _NFE_ADDRESS_FIELDS = (
     "street",
     "number",
@@ -58,6 +60,53 @@ def _validate_nfe_address(address: Address | None) -> None:
         raise ValueError(
             "recipient_address is missing required fields for NFE: "
             + ", ".join(missing)
+        )
+
+
+# What the API converts before its own latin1 check (stackin-api#228):
+# typographic quotes, dashes, ellipsis, bullet, euro and trademark.
+# Those are not refused here; the SDK does not translate them either.
+_API_CONVERTED = frozenset(
+    "\u2018\u2019\u201a\u201c\u201d\u201e\u2013\u2014\u2212\u2026\u2022\u20ac\u2122"
+)
+
+
+def _first_non_latin1(value: Any, path: str) -> tuple[str, str] | None:
+    """The first character in `value` the NF-e cannot carry, with its path.
+
+    Anything up to U+00FF passes (tab, newline and CR included: the API
+    folds them into a space), and so does what the API converts.
+    """
+    if isinstance(value, str):
+        for char in value:
+            if char > "\u00ff" and char not in _API_CONVERTED:
+                return path, char
+        return None
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            child = f"{path}.{key}" if path else str(key)
+            if found := _first_non_latin1(nested, child):
+                return found
+        return None
+    if isinstance(value, (list, tuple)):
+        for index, nested in enumerate(value):
+            if found := _first_non_latin1(nested, f"{path}[{index}]"):
+                return found
+    return None
+
+
+def _validate_nfe_latin1(payload: dict) -> None:
+    """NF-e is encoded in ISO-8859-1; the SEFAZ refuses anything else.
+
+    Walks every string the request would carry, so a free-text field
+    added later is covered without being listed here. Refuses only what
+    the API would refuse after its own normalisation, never more.
+    """
+    if found := _first_non_latin1(payload, ""):
+        path, char = found
+        raise ValueError(
+            f"{path} contains a character outside ISO-8859-1 (latin1), "
+            f"which NF-e does not accept: '{char}'"
         )
 
 
@@ -170,6 +219,11 @@ class Invoice(_Client):
 
         if document_type is DocumentType.NFE:
             for index, item in enumerate(items):
+                if len(item.description) > _NFE_DESCRIPTION_MAX:
+                    raise ValueError(
+                        f"items[{index}].description exceeds "
+                        f"{_NFE_DESCRIPTION_MAX} characters (NF-e xProd limit)"
+                    )
                 if not item.ncm:
                     raise ValueError(f"items[{index}].ncm is required for NFE")
                 if not item.cfop:
@@ -188,6 +242,8 @@ class Invoice(_Client):
             payload["series"] = series
         if number:
             payload["number"] = number
+        if document_type is DocumentType.NFE:
+            _validate_nfe_latin1(payload)
 
         return cast(
             dict,
