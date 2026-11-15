@@ -1,3 +1,34 @@
+# Changelog
+
+## v0.11.0 — 2026-11-15
+
+### Features
+- **client:** require recipient_address for retained ISS on NFS-e
+- **product:** validate the GTIN check digit on barcode
+- **client:** reject non-latin1 characters on NF-e
+- **product:** validate barcode, xProd and address lengths per XSD 4.00
+- **client:** require a 44-digit NF-e key on correct()
+
+### Bug Fixes
+- **client:** refuse only what the API refuses in NF-e text
+- **client:** accept an alphanumeric CNPJ in the correct() access key
+- **client:** require a complete address for retained ISS on NFS-e
+- **examples:** pass amount to PresumedCredit
+- **client:** type the invoice responses for mypy
+- **product:** accept only 8-digit NCM or 00
+
+### Docs
+- **client:** say which correct() keys fail locally and which get a 409
+
+### Build
+- add mypy and types-requests to the code-quality group
+
+### Style
+- apply ruff format to the tree
+
+### Chores
+- **platform:** install action-platform
+
 # Changelog — invoice (SDK)
 
 ## 0.1.2
