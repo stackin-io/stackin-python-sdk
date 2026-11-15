@@ -38,7 +38,9 @@ def _resolve_base_url(
     return DEFAULT_BASE_URL
 
 
-_NFE_ACCESS_KEY = re.compile(r"\d{44}", re.ASCII)
+# cUF+AAMM, then the issuer CNPJ (alphanumeric from July 2026: letters
+# in its first 12 positions), then the rest. Same check as the API's.
+_NFE_ACCESS_KEY = re.compile(r"[0-9]{6}[0-9A-Z]{12}[0-9]{26}")
 
 _NFE_ADDRESS_FIELDS = (
     "street",
@@ -279,9 +281,10 @@ class Invoice(_Client):
     ) -> dict:
         """Files a correction letter (CC-e) against an issued NF-e.
 
-        Only an NF-e has one, so the access key must be the NF-e's 44
-        digits; an NFS-e is cancelled and issued again instead. That is
-        checked here. A 44-digit key sent with DocumentType.NFSE, or one
+        Only an NF-e has one, so the access key must be an NF-e access
+        key (44 characters; the CNPJ slot may carry letters); an NFS-e is
+        cancelled and issued again instead. That is checked here. An NF-e
+        key sent with DocumentType.NFSE, or one
         for a document the API does not hold, is still answered by the
         API as an APIError with status 409.
         """
