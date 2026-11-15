@@ -37,7 +37,7 @@ def main():
         purchase_order="PC-2026-00042",
         purchase_order_item="1",
         import_content_control_number="550E8400-E29B-41D4-A716-446655440000",
-        recopi_number="00000000000012345678",
+        recopi_number="20131106114609734393",
         extra_groups={},
     )
 
