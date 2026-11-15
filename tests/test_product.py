@@ -277,3 +277,99 @@ class TestIbsCbs(unittest.TestCase):
     def test_a_zero_rate_is_allowed(self):
         """A municipality with no IBS rate is a real case, not an error."""
         self.assertEqual(IbsCbs(**self.group(rate_city=0)).rate_city, 0)
+
+
+class TestNcm(unittest.TestCase):
+    """The full 8 digits, or 00 for a service line; else SEFAZ 777."""
+
+    def test_an_eight_digit_ncm_is_accepted(self):
+        product = Product(description="Teclado", ncm="84713012")
+
+        self.assertEqual(product.ncm, "84713012")
+
+    def test_00_for_a_service_line_is_accepted(self):
+        product = Product(description="Instalacao", ncm="00")
+
+        self.assertEqual(product.ncm, "00")
+
+    def test_a_two_digit_chapter_is_refused(self):
+        for ncm in ("84", "12"):
+            with self.subTest(ncm=ncm), self.assertRaises(ValidationError):
+                Product(description="Teclado", ncm=ncm)
+
+    def test_any_other_length_is_refused(self):
+        for ncm in ("8471301", "847130120", "8471301A"):
+            with self.subTest(ncm=ncm), self.assertRaises(ValidationError):
+                Product(description="Teclado", ncm=ncm)
+
+
+class TestBarcodeFormat(unittest.TestCase):
+    """cEAN as the NF-e 4.00 XSD defines it."""
+
+    def test_sem_gtin_is_accepted(self):
+        product = Product(description="Teclado", barcode="SEM GTIN")
+
+        self.assertEqual(product.barcode, "SEM GTIN")
+
+    def test_a_gtin_of_8_12_13_or_14_digits_is_accepted(self):
+        for barcode in (
+            "96385074",
+            "036000291452",
+            "7891000100103",
+            "17891234567892",
+        ):
+            with self.subTest(barcode=barcode):
+                product = Product(description="Teclado", barcode=barcode)
+                self.assertEqual(product.barcode, barcode)
+
+    def test_any_other_shape_is_refused(self):
+        for barcode in ("", "1234567", "123456789", "12345678901", "SEM"):
+            with self.subTest(barcode=barcode), self.assertRaises(ValidationError):
+                Product(description="Teclado", barcode=barcode)
+
+
+def _gs1_check_digit(body: str) -> str:
+    """Computed independently of the SDK to build the test vectors."""
+    weights = [3, 1] * 7
+    total = sum(
+        int(digit) * weights[index] for index, digit in enumerate(reversed(body))
+    )
+    return str((10 - total % 10) % 10)
+
+
+class TestBarcodeCheckDigit(unittest.TestCase):
+    """GS1 modulo 10 on every GTIN length; SEM GTIN skips it."""
+
+    def test_known_valid_gtins_are_accepted(self):
+        for barcode in (
+            "4006381333931",  # EAN-13
+            "96385074",  # EAN-8
+            "036000291452",  # UPC-A / GTIN-12
+            "7891000100103",  # EAN-13, Brazil
+            "17891234567892",  # GTIN-14
+        ):
+            with self.subTest(barcode=barcode):
+                self.assertEqual(barcode[-1], _gs1_check_digit(barcode[:-1]))
+                product = Product(description="Teclado", barcode=barcode)
+                self.assertEqual(product.barcode, barcode)
+
+    def test_a_wrong_check_digit_is_refused(self):
+        for barcode in (
+            "4006381333932",
+            "96385075",
+            "036000291453",
+            "17891234567894",  # the example in the issue
+        ):
+            with (
+                self.subTest(barcode=barcode),
+                self.assertRaisesRegex(
+                    ValidationError, "barcode has an invalid GTIN check digit"
+                ),
+            ):
+                self.assertNotEqual(barcode[-1], _gs1_check_digit(barcode[:-1]))
+                Product(description="Teclado", barcode=barcode)
+
+    def test_sem_gtin_skips_the_check(self):
+        product = Product(description="Teclado", barcode="SEM GTIN")
+
+        self.assertEqual(product.barcode, "SEM GTIN")
