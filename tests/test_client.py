@@ -140,6 +140,43 @@ class TestClientIssueValidation(unittest.TestCase):
                 items=[item],
             )
 
+    def test_rejects_a_description_over_120_characters_on_nfe(self):
+        item = Product(description="a" * 121, amount=10.0, ncm="12345678", cfop="5102")
+        with self.assertRaisesRegex(
+            ValueError,
+            r"items\[0\]\.description exceeds 120 characters \(NF-e xProd limit\)",
+        ):
+            self.client.issue(
+                document_type=DocumentType.NFE,
+                client_name="Buyer",
+                tax_id="123",
+                items=[item],
+            )
+
+    def test_accepts_a_description_of_120_characters_on_nfe(self):
+        item = Product(description="a" * 120, amount=10.0, ncm="12345678", cfop="5102")
+        with self.assertRaisesRegex(
+            ValueError, "recipient_address is required for NFE"
+        ):
+            self.client.issue(
+                document_type=DocumentType.NFE,
+                client_name="Buyer",
+                tax_id="123",
+                items=[item],
+            )
+
+    def test_nfse_descriptions_are_not_limited_to_120(self):
+        item = Product(description="a" * 500, amount=10.0)
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(200, json_data={"result": {}})
+            self.client.issue(
+                document_type=DocumentType.NFSE,
+                client_name="Buyer",
+                tax_id="123",
+                items=[item],
+            )
+        mock_request.assert_called_once()
+
     def test_requires_recipient_address_for_nfe(self):
         item = Product(description="Produto", amount=10.0, ncm="12345678", cfop="5102")
         with self.assertRaisesRegex(
@@ -162,6 +199,121 @@ class TestClientIssueValidation(unittest.TestCase):
                 items=[item],
                 recipient_address=Address(state="SC"),
             )
+
+
+class TestClientLatin1(unittest.TestCase):
+    """NF-e travels as ISO-8859-1; anything outside it is refused here."""
+
+    def setUp(self):
+        self.client = Invoice(api_key="test-key")
+        self.address = {
+            "street": "Avenida Atlantica",
+            "number": "1702",
+            "neighborhood": "Copacabana",
+            "city": "Rio de Janeiro",
+            "state": "RJ",
+            "zip_code": "22021001",
+            "city_code": "3304557",
+        }
+
+    def issue(self, document_type=DocumentType.NFE, **overrides):
+        item_fields = {
+            "description": "Cafe torrado",
+            "amount": 10.0,
+            "ncm": "12345678",
+            "cfop": "5102",
+        }
+        item_fields.update(overrides.pop("item", {}))
+        address = {**self.address, **overrides.pop("address", {})}
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(200, json_data={"result": {}})
+            self.client.issue(
+                document_type=document_type,
+                client_name=overrides.pop("client_name", "Buyer"),
+                tax_id="123",
+                items=[Product(**item_fields)],
+                recipient_address=Address(**address),
+            )
+        return mock_request
+
+    def test_accented_portuguese_is_accepted(self):
+        mock_request = self.issue(
+            client_name="Joao da Conceicao Sao",
+            item={"description": "Cafe com acucar e pao - ação"},
+            address={"street": "Rua Ipe Amarelo nº 3"},
+        )
+
+        mock_request.assert_called_once()
+
+    def test_an_emoji_in_the_description_is_refused(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"items\[0\]\.description contains a character outside "
+            r"ISO-8859-1 \(latin1\), which NF-e does not accept: '\U0001f600'",
+        ):
+            self.issue(item={"description": "Cafe \U0001f600"})
+
+    def test_what_the_api_converts_is_accepted(self):
+        """Quotes, dashes, ellipsis, bullet, euro, trademark: the API maps them."""
+        mock_request = self.issue(
+            client_name="Buyer \u2014 Ltda",
+            item={
+                "description": "\u201cTeclado\u201d \u2014 2 un\u2026 \u20ac10\u2122",
+                "purchase_order": "PO\u2013\u2018x\u2019\u201a\u201e\u2212\u2022",
+            },
+            address={"city": "Santa Barbara d\u2019Oeste"},
+        )
+
+        mock_request.assert_called_once()
+
+    def test_tabs_and_line_breaks_are_accepted(self):
+        mock_request = self.issue(item={"description": "a\tb\nc\rd"})
+
+        mock_request.assert_called_once()
+
+    def test_accented_latin1_is_accepted(self):
+        mock_request = self.issue(item={"description": "\u00e9 \u00e7 \u00e3"})
+
+        mock_request.assert_called_once()
+
+    def test_cjk_and_cyrillic_are_refused(self):
+        for char in ("\u4e2d", "\u0416", "\U0001f525"):
+            with (
+                self.subTest(char=char),
+                self.assertRaisesRegex(
+                    ValueError,
+                    r"^items\[0\]\.description contains a character outside "
+                    r"ISO-8859-1 \(latin1\), which NF-e does not accept: "
+                    f"'{char}'$",
+                ),
+            ):
+                self.issue(item={"description": f"Teclado {char}"})
+
+    def test_the_client_name_is_checked(self):
+        with self.assertRaisesRegex(ValueError, "^client_name contains .*'\u0416'"):
+            self.issue(client_name="Buyer \u0416")
+
+    def test_every_address_field_is_checked(self):
+        with self.assertRaisesRegex(
+            ValueError, r"^recipient_address\.city contains .*'\u4e2d'"
+        ):
+            self.issue(address={"city": "Santa Barbara \u4e2d"})
+
+    def test_the_unit_and_purchase_order_are_checked(self):
+        with self.assertRaisesRegex(ValueError, r"^items\[0\]\.product\.unit contains"):
+            self.issue(item={"unit": "m\u00b3\u2009"})
+        with self.assertRaisesRegex(
+            ValueError, r"^items\[0\]\.product\.purchase_order contains"
+        ):
+            self.issue(item={"purchase_order": "PO\U0001f525"})
+
+    def test_nfse_is_not_checked(self):
+        mock_request = self.issue(
+            document_type=DocumentType.NFSE,
+            item={"description": "Consultoria \U0001f600"},
+        )
+
+        mock_request.assert_called_once()
 
 
 class TestClientRetainedIss(unittest.TestCase):
@@ -403,6 +555,7 @@ class TestClientCorrect(unittest.TestCase):
     def setUp(self):
         self.client = Invoice(api_key="test-key")
         self.text = "Transportadora corrigida para Rapido Ltda"
+        self.key = "35" + "0" * 42
 
     def test_posts_to_the_correction_path(self):
         with patch("stackin.core.client.requests.request") as mock_request:
@@ -410,14 +563,14 @@ class TestClientCorrect(unittest.TestCase):
                 200, json_data={"result": {"status": "authorized"}}
             )
             result = self.client.correct(
-                "abc123",
+                self.key,
                 document_type=DocumentType.NFE,
                 correction=self.text,
             )
 
         args, kwargs = mock_request.call_args
         self.assertEqual(args[0], "POST")
-        self.assertTrue(args[1].endswith("/invoices/abc123/correction"))
+        self.assertTrue(args[1].endswith(f"/invoices/{self.key}/correction"))
         self.assertEqual(
             kwargs["json"],
             {"document_type": "nfe", "correction": self.text},
@@ -428,7 +581,7 @@ class TestClientCorrect(unittest.TestCase):
         with patch("stackin.core.client.requests.request") as mock_request:
             with self.assertRaises(ValueError):
                 self.client.correct(
-                    "abc123",
+                    self.key,
                     document_type=DocumentType.NFE,
                     correction="curto demais",
                 )
@@ -438,11 +591,67 @@ class TestClientCorrect(unittest.TestCase):
         with patch("stackin.core.client.requests.request") as mock_request:
             with self.assertRaises(ValueError):
                 self.client.correct(
-                    "abc123",
+                    self.key,
                     document_type=DocumentType.NFE,
                     correction="a" * 1001,
                 )
             mock_request.assert_not_called()
+
+    def test_an_nfe_key_sent_as_nfse_is_left_to_the_api(self):
+        """Only the API knows the document type is wrong: it answers 409."""
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                409, json_data={"detail": "correction is NF-e only"}
+            )
+            with self.assertRaises(APIError) as raised:
+                self.client.correct(
+                    self.key,
+                    document_type=DocumentType.NFSE,
+                    correction=self.text,
+                )
+        mock_request.assert_called_once()
+        self.assertEqual(raised.exception.status_code, 409)
+
+    def test_accepts_a_key_with_an_alphanumeric_cnpj(self):
+        """From July 2026 the CNPJ's first 12 positions may be letters."""
+        key = "352607" + "12ABC3450001" + "90550010000000011000000017"
+        self.assertEqual(len(key), 44)
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(200, json_data={"result": {}})
+            self.client.correct(
+                key, document_type=DocumentType.NFE, correction=self.text
+            )
+        mock_request.assert_called_once()
+
+    def test_rejects_a_key_that_is_not_an_nfe_access_key(self):
+        message = (
+            "correct is NFe only. NFSe has no correction letter — "
+            "cancel and reissue instead."
+        )
+        lowercase_cnpj = "352607" + "12abc3450001" + "9" * 26
+        letter_outside_cnpj = "35260A" + "1" * 12 + "9" * 26
+        letter_after_cnpj = "352607" + "1" * 12 + "A" + "9" * 25
+        for key in (
+            "3" * 50,  # an NFS-e key
+            "3" * 43,
+            "3" * 45,
+            "abc123",
+            lowercase_cnpj,
+            letter_outside_cnpj,
+            letter_after_cnpj,
+        ):
+            with (
+                self.subTest(key=key),
+                patch("stackin.core.client.requests.request") as mock_request,
+            ):
+                with self.assertRaises(ValueError) as raised:
+                    self.client.correct(
+                        key,
+                        document_type=DocumentType.NFE,
+                        correction=self.text,
+                    )
+                self.assertEqual(str(raised.exception), message)
+                mock_request.assert_not_called()
 
 
 class TestClientIdempotency(unittest.TestCase):
