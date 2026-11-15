@@ -53,8 +53,7 @@ class Kind:
             dict,
             self._client._request(
                 "GET",
-                f"/fiscal-references/{_segment(self.name)}"
-                f"/{_segment(code)}",
+                f"/fiscal-references/{_segment(self.name)}" f"/{_segment(code)}",
                 params={"country": country or self.country},
             ),
         )
