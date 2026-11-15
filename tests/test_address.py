@@ -48,8 +48,11 @@ class TestAddressMinimumLength(unittest.TestCase):
 
     def test_a_one_character_field_is_refused(self):
         for field in ("street", "neighborhood"):
-            with self.subTest(field=field), self.assertRaisesRegex(
-                ValidationError, f"{field} must have at least 2 characters"
+            with (
+                self.subTest(field=field),
+                self.assertRaisesRegex(
+                    ValidationError, f"{field} must have at least 2 characters"
+                ),
             ):
                 Address(**{field: "A"})
 

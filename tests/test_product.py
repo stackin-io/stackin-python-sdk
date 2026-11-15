@@ -324,9 +324,7 @@ class TestBarcodeFormat(unittest.TestCase):
 
     def test_any_other_shape_is_refused(self):
         for barcode in ("", "1234567", "123456789", "12345678901", "SEM"):
-            with self.subTest(barcode=barcode), self.assertRaises(
-                ValidationError
-            ):
+            with self.subTest(barcode=barcode), self.assertRaises(ValidationError):
                 Product(description="Teclado", barcode=barcode)
 
 
@@ -334,8 +332,7 @@ def _gs1_check_digit(body: str) -> str:
     """Computed independently of the SDK to build the test vectors."""
     weights = [3, 1] * 7
     total = sum(
-        int(digit) * weights[index]
-        for index, digit in enumerate(reversed(body))
+        int(digit) * weights[index] for index, digit in enumerate(reversed(body))
     )
     return str((10 - total % 10) % 10)
 
@@ -369,9 +366,7 @@ class TestBarcodeCheckDigit(unittest.TestCase):
                     ValidationError, "barcode has an invalid GTIN check digit"
                 ),
             ):
-                self.assertNotEqual(
-                    barcode[-1], _gs1_check_digit(barcode[:-1])
-                )
+                self.assertNotEqual(barcode[-1], _gs1_check_digit(barcode[:-1]))
                 Product(description="Teclado", barcode=barcode)
 
     def test_sem_gtin_skips_the_check(self):

@@ -53,8 +53,7 @@ def _gtin_check_digit_ok(gtin: str) -> bool:
     """GS1 modulo 10: weights 3,1,3,1... from the right, check excluded."""
     body = gtin[-2::-1]
     total = sum(
-        int(digit) * (3 if index % 2 == 0 else 1)
-        for index, digit in enumerate(body)
+        int(digit) * (3 if index % 2 == 0 else 1) for index, digit in enumerate(body)
     )
     return (10 - total % 10) % 10 == int(gtin[-1])
 
@@ -95,22 +94,17 @@ class Product(BaseModel):
     )
     cfop: str | None = Field(default=None, pattern=r"^[123567]\d{3}$")
     cest: str | None = Field(default=None, pattern=r"^\d{7}$")
-    nve_codes: (
-        list[Annotated[str, Field(pattern=r"^[A-Z]{2}\d{4}$")]] | None
-    ) = Field(default=None)
-    ind_escala: str | None = Field(default=None)
-    manufacturer_cnpj: str | None = Field(
-        default=None, pattern=r"^[0-9A-Z]{12}\d{2}$"
+    nve_codes: list[Annotated[str, Field(pattern=r"^[A-Z]{2}\d{4}$")]] | None = Field(
+        default=None
     )
+    ind_escala: str | None = Field(default=None)
+    manufacturer_cnpj: str | None = Field(default=None, pattern=r"^[0-9A-Z]{12}\d{2}$")
     tax_benefit_code: str | None = Field(default=None, pattern=_CBENEF_PATTERN)
     presumed_credits: list[PresumedCredit] | None = Field(default=None)
     ex_tipi: str | None = Field(default=None, pattern=r"^\d{2,3}$")
     import_content_control_number: str | None = Field(
         default=None,
-        pattern=(
-            r"^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}"
-            r"-[A-F0-9]{4}-[A-F0-9]{12}$"
-        ),
+        pattern=(r"^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}" r"-[A-F0-9]{4}-[A-F0-9]{12}$"),
     )
     recopi_number: str | None = Field(default=None, pattern=r"^\d{20}$")
     ibs_cbs: IbsCbs | None = Field(default=None)

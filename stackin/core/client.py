@@ -58,9 +58,7 @@ def _validate_nfe_address(address: Address | None) -> None:
     if address is None:
         raise ValueError("recipient_address is required for NFE")
 
-    missing = [
-        field for field in _NFE_ADDRESS_FIELDS if not getattr(address, field)
-    ]
+    missing = [field for field in _NFE_ADDRESS_FIELDS if not getattr(address, field)]
     if missing:
         raise ValueError(
             "recipient_address is missing required fields for NFE: "
@@ -214,9 +212,7 @@ class Invoice(_Client):
                 if not item.ncm:
                     raise ValueError(f"items[{index}].ncm is required for NFE")
                 if not item.cfop:
-                    raise ValueError(
-                        f"items[{index}].cfop is required for NFE"
-                    )
+                    raise ValueError(f"items[{index}].cfop is required for NFE")
                 if len(item.description) > _NFE_DESCRIPTION_MAX:
                     raise ValueError(
                         f"items[{index}].description exceeds "
@@ -339,13 +335,9 @@ class Invoice(_Client):
             "correction": correction,
         }
 
-        return self._request(
-            "POST", f"/invoices/{access_key}/correction", json=payload
-        )
+        return self._request("POST", f"/invoices/{access_key}/correction", json=payload)
 
-    def reissue(
-        self, invoice_id: str, *, idempotency_key: str | None = None
-    ) -> dict:
+    def reissue(self, invoice_id: str, *, idempotency_key: str | None = None) -> dict:
         """Retries a previous invoice submission by its local id."""
         return self._request(
             "POST",
@@ -368,9 +360,7 @@ class Invoice(_Client):
         unavailable, not that the invoice is wrong. NFS-e only.
         """
         params = {"document_type": document_type.value}
-        response = self._send(
-            "GET", f"/invoices/{access_key}/pdf", params=params
-        )
+        response = self._send("GET", f"/invoices/{access_key}/pdf", params=params)
         return response.content
 
     def received(
@@ -448,13 +438,11 @@ class Invoice(_Client):
         needs_reason = manifestation is Manifestation.OPERACAO_NAO_REALIZADA
         if needs_reason and not reason:
             raise ValueError(
-                "manifestation 210240 (operação não realizada) requires "
-                "a reason"
+                "manifestation 210240 (operação não realizada) requires " "a reason"
             )
         if not needs_reason and reason:
             raise ValueError(
-                f"manifestation {manifestation.value} does not take a "
-                "reason"
+                f"manifestation {manifestation.value} does not take a " "reason"
             )
 
         payload = {"manifestation": manifestation.value}
