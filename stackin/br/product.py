@@ -58,6 +58,21 @@ def _gtin_check_digit_ok(gtin: str) -> bool:
     return (10 - total % 10) % 10 == int(gtin[-1])
 
 
+def _recopi_check_digit(digits: str) -> int:
+    """MOC 8.5 modulo 11: weights n..1 left to right; remainder 0 or 1 gives 0."""
+    weights = range(len(digits), 0, -1)
+    total = sum(int(digit) * weight for digit, weight in zip(digits, weights))
+    remainder = total % 11
+    return 0 if remainder < 2 else 11 - remainder
+
+
+def _recopi_check_digits_ok(recopi: str) -> bool:
+    """DV1 over the first 18 digits, DV2 over those 18 plus DV1."""
+    dv1 = _recopi_check_digit(recopi[:18])
+    dv2 = _recopi_check_digit(recopi[:18] + str(dv1))
+    return recopi[18:] == f"{dv1}{dv2}"
+
+
 def _decimal_str(value: Decimal | None) -> str | None:
     """JSON has no decimal; a float would lose the tenth place."""
     return None if value is None else format(value, "f")
@@ -106,7 +121,10 @@ class Product(BaseModel):
         default=None,
         pattern=(r"^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}" r"-[A-F0-9]{4}-[A-F0-9]{12}$"),
     )
-    recopi_number: str | None = Field(default=None, pattern=r"^\d{20}$")
+    recopi_number: str | None = Field(
+        default=None,
+        description="nRECOPI: 20 digits, the last two modulo-11 check digits.",
+    )
     ibs_cbs: IbsCbs | None = Field(default=None)
     extra_groups: dict[str, Any] | None = Field(default=None)
     tax: Tax | dict[str, Any] | None = Field(default=None)
@@ -132,6 +150,18 @@ class Product(BaseModel):
             return value
         if not _gtin_check_digit_ok(value):
             raise ValueError("barcode has an invalid GTIN check digit")
+        return value
+
+    @field_validator("recopi_number")
+    @classmethod
+    def _valid_recopi_check_digits(cls, value: str | None) -> str | None:
+        """The date/time part is not checked; it depends on the clock."""
+        if value is None:
+            return value
+        if len(value) != 20 or not (value.isascii() and value.isdigit()):
+            raise ValueError("recopi_number must have exactly 20 digits")
+        if not _recopi_check_digits_ok(value):
+            raise ValueError("recopi_number has invalid check digits")
         return value
 
     def to_dict(self) -> dict:

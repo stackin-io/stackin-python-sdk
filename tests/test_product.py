@@ -373,3 +373,41 @@ class TestBarcodeCheckDigit(unittest.TestCase):
         product = Product(description="Teclado", barcode="SEM GTIN")
 
         self.assertEqual(product.barcode, "SEM GTIN")
+
+
+class TestRecopiCheckDigits(unittest.TestCase):
+    """nRECOPI: 20 digits, two modulo-11 check digits (MOC 8.5)."""
+
+    def test_the_moc_example_is_accepted(self):
+        product = Product(description="Papel", recopi_number="20131106114609734393")
+
+        self.assertEqual(product.recopi_number, "20131106114609734393")
+
+    def test_a_remainder_of_0_or_1_gives_check_digit_0(self):
+        product = Product(description="Papel", recopi_number="00000000000012345600")
+
+        self.assertEqual(product.recopi_number, "00000000000012345600")
+
+    def test_a_wrong_check_digit_is_refused(self):
+        for recopi in ("20131106114609734394", "20131106114609734383"):
+            with (
+                self.subTest(recopi=recopi),
+                self.assertRaisesRegex(
+                    ValidationError, "recopi_number has invalid check digits"
+                ),
+            ):
+                Product(description="Papel", recopi_number=recopi)
+
+    def test_any_other_shape_is_refused(self):
+        for recopi in (
+            "2013110611460973439",
+            "201311061146097343930",
+            "2013110611460973439A",
+        ):
+            with (
+                self.subTest(recopi=recopi),
+                self.assertRaisesRegex(
+                    ValidationError, "recopi_number must have exactly 20 digits"
+                ),
+            ):
+                Product(description="Papel", recopi_number=recopi)
