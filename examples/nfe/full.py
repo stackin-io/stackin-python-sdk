@@ -26,9 +26,7 @@ def main():
         manufacturer_cnpj="12345678000195",
         tax_benefit_code="PR820001",
         presumed_credits=[
-            PresumedCredit(
-                code="PR820001", percentage=3.0, unit_price=Decimal("30.00")
-            ),
+            PresumedCredit(code="PR820001", percentage=3.0, amount=30.00),
         ],
         ex_tipi="01",
         freight=20.00,
