@@ -64,9 +64,7 @@ class TestClientBaseUrlResolution(unittest.TestCase):
         self.assertEqual(client.base_url, "http://env-url:9000")
 
     def test_uses_stackin_environment_env_var(self):
-        with patch.dict(
-            "os.environ", {"STACKIN_ENVIRONMENT": "local"}, clear=True
-        ):
+        with patch.dict("os.environ", {"STACKIN_ENVIRONMENT": "local"}, clear=True):
             client = Invoice(api_key="test-key")
         self.assertEqual(client.base_url, "http://localhost:8000")
 
@@ -76,15 +74,11 @@ class TestClientBaseUrlResolution(unittest.TestCase):
             {"STACKIN_BASE_URL": "http://env-url:9000"},
             clear=True,
         ):
-            client = Invoice(
-                base_url="http://explicit:1234", api_key="test-key"
-            )
+            client = Invoice(base_url="http://explicit:1234", api_key="test-key")
         self.assertEqual(client.base_url, "http://explicit:1234")
 
     def test_reads_api_key_from_env_var(self):
-        with patch.dict(
-            "os.environ", {"STACKIN_API_KEY": "env-key"}, clear=True
-        ):
+        with patch.dict("os.environ", {"STACKIN_API_KEY": "env-key"}, clear=True):
             client = Invoice()
         self.assertEqual(client.api_key, "env-key")
 
@@ -92,9 +86,7 @@ class TestClientBaseUrlResolution(unittest.TestCase):
 class TestClientHeaders(unittest.TestCase):
     def test_include_bearer_token_when_api_key_set(self):
         client = Invoice(api_key="test-key")
-        self.assertEqual(
-            client._headers(), {"Authorization": "Bearer test-key"}
-        )
+        self.assertEqual(client._headers(), {"Authorization": "Bearer test-key"})
 
     def test_empty_without_api_key(self):
         client = Invoice(api_key=None)
@@ -130,9 +122,7 @@ class TestClientIssueValidation(unittest.TestCase):
 
     def test_requires_ncm_for_nfe(self):
         item = Product(description="Produto", amount=10.0, cfop="5102")
-        with self.assertRaisesRegex(
-            ValueError, r"items\[0\].ncm is required for NFE"
-        ):
+        with self.assertRaisesRegex(ValueError, r"items\[0\].ncm is required for NFE"):
             self.client.issue(
                 document_type=DocumentType.NFE,
                 client_name="Buyer",
@@ -142,9 +132,7 @@ class TestClientIssueValidation(unittest.TestCase):
 
     def test_requires_cfop_for_nfe(self):
         item = Product(description="Produto", amount=10.0, ncm="12345678")
-        with self.assertRaisesRegex(
-            ValueError, r"items\[0\].cfop is required for NFE"
-        ):
+        with self.assertRaisesRegex(ValueError, r"items\[0\].cfop is required for NFE"):
             self.client.issue(
                 document_type=DocumentType.NFE,
                 client_name="Buyer",
@@ -153,9 +141,7 @@ class TestClientIssueValidation(unittest.TestCase):
             )
 
     def test_rejects_a_description_over_120_characters_on_nfe(self):
-        item = Product(
-            description="a" * 121, amount=10.0, ncm="12345678", cfop="5102"
-        )
+        item = Product(description="a" * 121, amount=10.0, ncm="12345678", cfop="5102")
         with self.assertRaisesRegex(
             ValueError,
             r"items\[0\]\.description exceeds 120 characters \(NF-e xProd limit\)",
@@ -168,9 +154,7 @@ class TestClientIssueValidation(unittest.TestCase):
             )
 
     def test_accepts_a_description_of_120_characters_on_nfe(self):
-        item = Product(
-            description="a" * 120, amount=10.0, ncm="12345678", cfop="5102"
-        )
+        item = Product(description="a" * 120, amount=10.0, ncm="12345678", cfop="5102")
         with self.assertRaisesRegex(
             ValueError, "recipient_address is required for NFE"
         ):
@@ -184,9 +168,7 @@ class TestClientIssueValidation(unittest.TestCase):
     def test_nfse_descriptions_are_not_limited_to_120(self):
         item = Product(description="a" * 500, amount=10.0)
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"result": {}}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"result": {}})
             self.client.issue(
                 document_type=DocumentType.NFSE,
                 client_name="Buyer",
@@ -196,9 +178,7 @@ class TestClientIssueValidation(unittest.TestCase):
         mock_request.assert_called_once()
 
     def test_requires_recipient_address_for_nfe(self):
-        item = Product(
-            description="Produto", amount=10.0, ncm="12345678", cfop="5102"
-        )
+        item = Product(description="Produto", amount=10.0, ncm="12345678", cfop="5102")
         with self.assertRaisesRegex(
             ValueError, "recipient_address is required for NFE"
         ):
@@ -210,9 +190,7 @@ class TestClientIssueValidation(unittest.TestCase):
             )
 
     def test_rejects_partial_recipient_address_for_nfe(self):
-        item = Product(
-            description="Produto", amount=10.0, ncm="12345678", cfop="5102"
-        )
+        item = Product(description="Produto", amount=10.0, ncm="12345678", cfop="5102")
         with self.assertRaisesRegex(ValueError, "zip_code"):
             self.client.issue(
                 document_type=DocumentType.NFE,
@@ -224,9 +202,7 @@ class TestClientIssueValidation(unittest.TestCase):
 
     def test_an_nfe_address_without_city_code_is_sent(self):
         """The API resolves the IBGE code from city and state."""
-        item = Product(
-            description="Produto", amount=10.0, ncm="12345678", cfop="5102"
-        )
+        item = Product(description="Produto", amount=10.0, ncm="12345678", cfop="5102")
         address = Address(
             street="Rua A",
             number="1",
@@ -292,9 +268,7 @@ class TestClientLatin1(unittest.TestCase):
         item_fields.update(overrides.pop("item", {}))
         address = {**self.address, **overrides.pop("address", {})}
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"result": {}}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"result": {}})
             self.client.issue(
                 document_type=document_type,
                 client_name=overrides.pop("client_name", "Buyer"),
@@ -358,9 +332,7 @@ class TestClientLatin1(unittest.TestCase):
                 self.issue(item={"description": f"Teclado {char}"})
 
     def test_the_client_name_is_checked(self):
-        with self.assertRaisesRegex(
-            ValueError, "^client_name contains .*'\u0416'"
-        ):
+        with self.assertRaisesRegex(ValueError, "^client_name contains .*'\u0416'"):
             self.issue(client_name="Buyer \u0416")
 
     def test_every_address_field_is_checked(self):
@@ -370,9 +342,7 @@ class TestClientLatin1(unittest.TestCase):
             self.issue(address={"city": "Santa Barbara \u4e2d"})
 
     def test_the_unit_and_purchase_order_are_checked(self):
-        with self.assertRaisesRegex(
-            ValueError, r"^items\[0\]\.product\.unit contains"
-        ):
+        with self.assertRaisesRegex(ValueError, r"^items\[0\]\.product\.unit contains"):
             self.issue(item={"unit": "m\u00b3\u2009"})
         with self.assertRaisesRegex(
             ValueError, r"^items\[0\]\.product\.purchase_order contains"
@@ -396,9 +366,7 @@ class TestClientRetainedIss(unittest.TestCase):
 
     def issue(self, items, recipient_address=None):
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"result": {}}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"result": {}})
             self.client.issue(
                 document_type=DocumentType.NFSE,
                 client_name="Buyer",
@@ -502,9 +470,7 @@ class TestClientIssue(unittest.TestCase):
         address = Address(state="SP")
 
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"result": {}}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"result": {}})
             self.client.issue(
                 document_type=DocumentType.NFSE,
                 client_name="Buyer",
@@ -527,9 +493,7 @@ class TestClientConsultAndCancel(unittest.TestCase):
 
     def test_consult_sends_get_with_document_type_param(self):
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"result": {}}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"result": {}})
             self.client.consult("abc123", document_type=DocumentType.NFE)
 
         args, kwargs = mock_request.call_args
@@ -539,9 +503,7 @@ class TestClientConsultAndCancel(unittest.TestCase):
 
     def test_cancel_sends_post_with_reason(self):
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"result": {}}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"result": {}})
             self.client.cancel(
                 "abc123", document_type=DocumentType.NFE, reason="duplicate"
             )
@@ -697,9 +659,7 @@ class TestClientCorrect(unittest.TestCase):
         key = "352607" + "12ABC3450001" + "90550010000000011000000017"
         self.assertEqual(len(key), 44)
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"result": {}}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"result": {}})
             self.client.correct(
                 key, document_type=DocumentType.NFE, correction=self.text
             )
@@ -838,9 +798,7 @@ class TestClientToleratesUnknownFields(unittest.TestCase):
             result = client.consult("abc", document_type=DocumentType.NFSE)
 
         self.assertEqual(result["access_key"], "abc")
-        self.assertEqual(
-            result["field_invented_next_year"], {"nested": [1, 2]}
-        )
+        self.assertEqual(result["field_invented_next_year"], {"nested": [1, 2]})
 
 
 class TestClientRequestHandling(unittest.TestCase):
@@ -849,9 +807,7 @@ class TestClientRequestHandling(unittest.TestCase):
 
     def test_returns_full_body_when_no_result_key(self):
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"status": "ok"}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"status": "ok"})
             result = self.client.consult("abc", document_type=DocumentType.NFE)
         self.assertEqual(result, {"status": "ok"})
 
@@ -863,9 +819,7 @@ class TestClientRequestHandling(unittest.TestCase):
 
     def test_handles_non_json_response_body(self):
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data=None, content=b"x"
-            )
+            mock_request.return_value = FakeResponse(200, json_data=None, content=b"x")
             result = self.client.consult("abc", document_type=DocumentType.NFE)
         self.assertEqual(result, {})
 
@@ -980,9 +934,7 @@ class TestReceived(unittest.TestCase):
 
     def test_it_passes_pagination_through(self):
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"data": []}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"data": []})
             self.client.received(limit=10, offset=20)
 
         _, kwargs = mock_request.call_args
@@ -990,9 +942,7 @@ class TestReceived(unittest.TestCase):
 
     def test_it_sends_no_empty_pagination(self):
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"data": []}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"data": []})
             self.client.received()
 
         _, kwargs = mock_request.call_args
@@ -1025,9 +975,7 @@ class TestManifest(unittest.TestCase):
                 self.assertTrue(
                     args[1].endswith("/received-invoices/abc123/manifestation")
                 )
-                self.assertEqual(
-                    kwargs["json"]["manifestation"], manifestation.value
-                )
+                self.assertEqual(kwargs["json"]["manifestation"], manifestation.value)
 
     def test_operacao_nao_realizada_carries_its_reason(self):
         mock_request = self.manifest(
