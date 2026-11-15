@@ -36,9 +36,7 @@ class AccessorsTest(unittest.TestCase):
     def test_a_kind_with_no_accessor_is_still_reachable(self):
         client = _client()
 
-        self.assertEqual(
-            client.kind("published_tomorrow").name, "published_tomorrow"
-        )
+        self.assertEqual(client.kind("published_tomorrow").name, "published_tomorrow")
 
 
 class GetTest(unittest.TestCase):

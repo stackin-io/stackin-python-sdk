@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, cast
 
 import requests
 
@@ -53,9 +53,7 @@ def _validate_nfe_address(address: Address | None) -> None:
     if address is None:
         raise ValueError("recipient_address is required for NFE")
 
-    missing = [
-        field for field in _NFE_ADDRESS_FIELDS if not getattr(address, field)
-    ]
+    missing = [field for field in _NFE_ADDRESS_FIELDS if not getattr(address, field)]
     if missing:
         raise ValueError(
             "recipient_address is missing required fields for NFE: "
@@ -175,12 +173,10 @@ class Invoice(_Client):
                 if not item.ncm:
                     raise ValueError(f"items[{index}].ncm is required for NFE")
                 if not item.cfop:
-                    raise ValueError(
-                        f"items[{index}].cfop is required for NFE"
-                    )
+                    raise ValueError(f"items[{index}].cfop is required for NFE")
             _validate_nfe_address(recipient_address)
 
-        payload = {
+        payload: dict[str, Any] = {
             "document_type": document_type.value,
             "client_name": client_name,
             "tax_id": tax_id,
@@ -193,11 +189,14 @@ class Invoice(_Client):
         if number:
             payload["number"] = number
 
-        return self._request(
-            "POST",
-            "/invoices",
-            json=payload,
-            idempotency_key=idempotency_key,
+        return cast(
+            dict,
+            self._request(
+                "POST",
+                "/invoices",
+                json=payload,
+                idempotency_key=idempotency_key,
+            ),
         )
 
     def consult(
@@ -209,7 +208,9 @@ class Invoice(_Client):
         """Consults a fiscal document by its access key."""
         params = {"document_type": document_type.value}
 
-        return self._request("GET", f"/invoices/{access_key}", params=params)
+        return cast(
+            dict, self._request("GET", f"/invoices/{access_key}", params=params)
+        )
 
     def cancel(
         self,
@@ -231,11 +232,14 @@ class Invoice(_Client):
             "reason": reason,
         }
 
-        return self._request(
-            "POST",
-            f"/invoices/{access_key}/cancel",
-            json=payload,
-            idempotency_key=idempotency_key,
+        return cast(
+            dict,
+            self._request(
+                "POST",
+                f"/invoices/{access_key}/cancel",
+                json=payload,
+                idempotency_key=idempotency_key,
+            ),
         )
 
     def invalidate(
@@ -259,7 +263,9 @@ class Invoice(_Client):
             "reason": reason,
         }
 
-        return self._request("POST", "/invoices/invalidations", json=payload)
+        return cast(
+            dict, self._request("POST", "/invoices/invalidations", json=payload)
+        )
 
     def correct(
         self,
@@ -277,18 +283,20 @@ class Invoice(_Client):
             "correction": correction,
         }
 
-        return self._request(
-            "POST", f"/invoices/{access_key}/correction", json=payload
+        return cast(
+            dict,
+            self._request("POST", f"/invoices/{access_key}/correction", json=payload),
         )
 
-    def reissue(
-        self, invoice_id: str, *, idempotency_key: str | None = None
-    ) -> dict:
+    def reissue(self, invoice_id: str, *, idempotency_key: str | None = None) -> dict:
         """Retries a previous invoice submission by its local id."""
-        return self._request(
-            "POST",
-            f"/invoices/{invoice_id}/reissue",
-            idempotency_key=idempotency_key,
+        return cast(
+            dict,
+            self._request(
+                "POST",
+                f"/invoices/{invoice_id}/reissue",
+                idempotency_key=idempotency_key,
+            ),
         )
 
     def pdf(
@@ -306,9 +314,7 @@ class Invoice(_Client):
         unavailable, not that the invoice is wrong. NFS-e only.
         """
         params = {"document_type": document_type.value}
-        response = self._send(
-            "GET", f"/invoices/{access_key}/pdf", params=params
-        )
+        response = self._send("GET", f"/invoices/{access_key}/pdf", params=params)
         return response.content
 
     def received(
@@ -329,7 +335,7 @@ class Invoice(_Client):
         if offset is not None:
             params["offset"] = offset
 
-        return self._request("GET", "/received-invoices", params=params)
+        return cast(dict, self._request("GET", "/received-invoices", params=params))
 
     def history(
         self,
@@ -360,7 +366,7 @@ class Invoice(_Client):
         if order_by is not None:
             params["order_by"] = order_by
 
-        return self._request("GET", "/invoices", params=params)
+        return cast(dict, self._request("GET", "/invoices", params=params))
 
     def submissions(self, invoice_id: str) -> list:
         """Every attempt made for one invoice, and what came back.
@@ -368,7 +374,7 @@ class Invoice(_Client):
         consult() gives the status; this gives the reason. Takes the
         invoice_id because a rejected document has no access key.
         """
-        return self._request("GET", f"/invoices/{invoice_id}/submissions")
+        return cast(list, self._request("GET", f"/invoices/{invoice_id}/submissions"))
 
     def manifest(
         self,
@@ -386,21 +392,22 @@ class Invoice(_Client):
         needs_reason = manifestation is Manifestation.OPERACAO_NAO_REALIZADA
         if needs_reason and not reason:
             raise ValueError(
-                "manifestation 210240 (operação não realizada) requires "
-                "a reason"
+                "manifestation 210240 (operação não realizada) requires " "a reason"
             )
         if not needs_reason and reason:
             raise ValueError(
-                f"manifestation {manifestation.value} does not take a "
-                "reason"
+                f"manifestation {manifestation.value} does not take a " "reason"
             )
 
         payload = {"manifestation": manifestation.value}
         if reason:
             payload["reason"] = reason
 
-        return self._request(
-            "POST",
-            f"/received-invoices/{access_key}/manifestation",
-            json=payload,
+        return cast(
+            dict,
+            self._request(
+                "POST",
+                f"/received-invoices/{access_key}/manifestation",
+                json=payload,
+            ),
         )
