@@ -64,9 +64,7 @@ class TestClientBaseUrlResolution(unittest.TestCase):
         self.assertEqual(client.base_url, "http://env-url:9000")
 
     def test_uses_stackin_environment_env_var(self):
-        with patch.dict(
-            "os.environ", {"STACKIN_ENVIRONMENT": "local"}, clear=True
-        ):
+        with patch.dict("os.environ", {"STACKIN_ENVIRONMENT": "local"}, clear=True):
             client = Invoice(api_key="test-key")
         self.assertEqual(client.base_url, "http://localhost:8000")
 
@@ -76,15 +74,11 @@ class TestClientBaseUrlResolution(unittest.TestCase):
             {"STACKIN_BASE_URL": "http://env-url:9000"},
             clear=True,
         ):
-            client = Invoice(
-                base_url="http://explicit:1234", api_key="test-key"
-            )
+            client = Invoice(base_url="http://explicit:1234", api_key="test-key")
         self.assertEqual(client.base_url, "http://explicit:1234")
 
     def test_reads_api_key_from_env_var(self):
-        with patch.dict(
-            "os.environ", {"STACKIN_API_KEY": "env-key"}, clear=True
-        ):
+        with patch.dict("os.environ", {"STACKIN_API_KEY": "env-key"}, clear=True):
             client = Invoice()
         self.assertEqual(client.api_key, "env-key")
 
@@ -92,9 +86,7 @@ class TestClientBaseUrlResolution(unittest.TestCase):
 class TestClientHeaders(unittest.TestCase):
     def test_include_bearer_token_when_api_key_set(self):
         client = Invoice(api_key="test-key")
-        self.assertEqual(
-            client._headers(), {"Authorization": "Bearer test-key"}
-        )
+        self.assertEqual(client._headers(), {"Authorization": "Bearer test-key"})
 
     def test_empty_without_api_key(self):
         client = Invoice(api_key=None)
@@ -130,9 +122,7 @@ class TestClientIssueValidation(unittest.TestCase):
 
     def test_requires_ncm_for_nfe(self):
         item = Product(description="Produto", amount=10.0, cfop="5102")
-        with self.assertRaisesRegex(
-            ValueError, r"items\[0\].ncm is required for NFE"
-        ):
+        with self.assertRaisesRegex(ValueError, r"items\[0\].ncm is required for NFE"):
             self.client.issue(
                 document_type=DocumentType.NFE,
                 client_name="Buyer",
@@ -142,9 +132,7 @@ class TestClientIssueValidation(unittest.TestCase):
 
     def test_requires_cfop_for_nfe(self):
         item = Product(description="Produto", amount=10.0, ncm="12345678")
-        with self.assertRaisesRegex(
-            ValueError, r"items\[0\].cfop is required for NFE"
-        ):
+        with self.assertRaisesRegex(ValueError, r"items\[0\].cfop is required for NFE"):
             self.client.issue(
                 document_type=DocumentType.NFE,
                 client_name="Buyer",
@@ -153,9 +141,7 @@ class TestClientIssueValidation(unittest.TestCase):
             )
 
     def test_requires_recipient_address_for_nfe(self):
-        item = Product(
-            description="Produto", amount=10.0, ncm="12345678", cfop="5102"
-        )
+        item = Product(description="Produto", amount=10.0, ncm="12345678", cfop="5102")
         with self.assertRaisesRegex(
             ValueError, "recipient_address is required for NFE"
         ):
@@ -167,9 +153,7 @@ class TestClientIssueValidation(unittest.TestCase):
             )
 
     def test_rejects_partial_recipient_address_for_nfe(self):
-        item = Product(
-            description="Produto", amount=10.0, ncm="12345678", cfop="5102"
-        )
+        item = Product(description="Produto", amount=10.0, ncm="12345678", cfop="5102")
         with self.assertRaisesRegex(ValueError, "city_code"):
             self.client.issue(
                 document_type=DocumentType.NFE,
@@ -212,9 +196,7 @@ class TestClientIssue(unittest.TestCase):
         address = Address(state="SP")
 
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"result": {}}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"result": {}})
             self.client.issue(
                 document_type=DocumentType.NFSE,
                 client_name="Buyer",
@@ -237,9 +219,7 @@ class TestClientConsultAndCancel(unittest.TestCase):
 
     def test_consult_sends_get_with_document_type_param(self):
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"result": {}}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"result": {}})
             self.client.consult("abc123", document_type=DocumentType.NFE)
 
         args, kwargs = mock_request.call_args
@@ -249,9 +229,7 @@ class TestClientConsultAndCancel(unittest.TestCase):
 
     def test_cancel_sends_post_with_reason(self):
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"result": {}}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"result": {}})
             self.client.cancel(
                 "abc123", document_type=DocumentType.NFE, reason="duplicate"
             )
@@ -509,9 +487,7 @@ class TestClientToleratesUnknownFields(unittest.TestCase):
             result = client.consult("abc", document_type=DocumentType.NFSE)
 
         self.assertEqual(result["access_key"], "abc")
-        self.assertEqual(
-            result["field_invented_next_year"], {"nested": [1, 2]}
-        )
+        self.assertEqual(result["field_invented_next_year"], {"nested": [1, 2]})
 
 
 class TestClientRequestHandling(unittest.TestCase):
@@ -520,9 +496,7 @@ class TestClientRequestHandling(unittest.TestCase):
 
     def test_returns_full_body_when_no_result_key(self):
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"status": "ok"}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"status": "ok"})
             result = self.client.consult("abc", document_type=DocumentType.NFE)
         self.assertEqual(result, {"status": "ok"})
 
@@ -534,9 +508,7 @@ class TestClientRequestHandling(unittest.TestCase):
 
     def test_handles_non_json_response_body(self):
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data=None, content=b"x"
-            )
+            mock_request.return_value = FakeResponse(200, json_data=None, content=b"x")
             result = self.client.consult("abc", document_type=DocumentType.NFE)
         self.assertEqual(result, {})
 
@@ -651,9 +623,7 @@ class TestReceived(unittest.TestCase):
 
     def test_it_passes_pagination_through(self):
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"data": []}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"data": []})
             self.client.received(limit=10, offset=20)
 
         _, kwargs = mock_request.call_args
@@ -661,9 +631,7 @@ class TestReceived(unittest.TestCase):
 
     def test_it_sends_no_empty_pagination(self):
         with patch("stackin.core.client.requests.request") as mock_request:
-            mock_request.return_value = FakeResponse(
-                200, json_data={"data": []}
-            )
+            mock_request.return_value = FakeResponse(200, json_data={"data": []})
             self.client.received()
 
         _, kwargs = mock_request.call_args
@@ -696,9 +664,7 @@ class TestManifest(unittest.TestCase):
                 self.assertTrue(
                     args[1].endswith("/received-invoices/abc123/manifestation")
                 )
-                self.assertEqual(
-                    kwargs["json"]["manifestation"], manifestation.value
-                )
+                self.assertEqual(kwargs["json"]["manifestation"], manifestation.value)
 
     def test_operacao_nao_realizada_carries_its_reason(self):
         mock_request = self.manifest(
