@@ -1,5 +1,7 @@
 import unittest
 
+from pydantic import ValidationError
+
 from stackin import Address
 
 
@@ -33,6 +35,32 @@ class TestAddressToDict(unittest.TestCase):
     def test_partial_address_omits_none_fields(self):
         address = Address(state="SC")
         self.assertEqual(address.to_dict(), {"state": "SC"})
+
+
+class TestAddressMinimumLength(unittest.TestCase):
+    """xLgr and xBairro take at least 2 characters in the NF-e XSD."""
+
+    def test_two_characters_are_enough(self):
+        address = Address(street="Av", neighborhood="Bo")
+
+        self.assertEqual(address.street, "Av")
+        self.assertEqual(address.neighborhood, "Bo")
+
+    def test_a_one_character_field_is_refused(self):
+        for field in ("street", "neighborhood"):
+            with self.subTest(field=field), self.assertRaisesRegex(
+                ValidationError, f"{field} must have at least 2 characters"
+            ):
+                Address(**{field: "A"})
+
+    def test_padding_does_not_count(self):
+        with self.assertRaisesRegex(
+            ValidationError, "street must have at least 2 characters"
+        ):
+            Address(street="  A  ")
+
+    def test_absent_fields_are_not_checked(self):
+        self.assertEqual(Address(state="SP").to_dict(), {"state": "SP"})
 
 
 if __name__ == "__main__":

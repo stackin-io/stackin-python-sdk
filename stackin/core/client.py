@@ -37,6 +37,8 @@ def _resolve_base_url(
     return DEFAULT_BASE_URL
 
 
+_NFE_DESCRIPTION_MAX = 120
+
 _NFE_ADDRESS_FIELDS = (
     "street",
     "number",
@@ -177,6 +179,11 @@ class Invoice(_Client):
                 if not item.cfop:
                     raise ValueError(
                         f"items[{index}].cfop is required for NFE"
+                    )
+                if len(item.description) > _NFE_DESCRIPTION_MAX:
+                    raise ValueError(
+                        f"items[{index}].description exceeds "
+                        f"{_NFE_DESCRIPTION_MAX} characters (NF-e xProd limit)"
                     )
             _validate_nfe_address(recipient_address)
 

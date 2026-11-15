@@ -62,7 +62,11 @@ class Product(BaseModel):
     unit_price: Decimal | None = Field(default=None, gt=0)
     unit: str = Field(default="UN")
     quantity: float = Field(default=1.0, gt=0)
-    barcode: str | None = Field(default=None)
+    barcode: str | None = Field(
+        default=None,
+        pattern=r"^(SEM GTIN|\d{8}|\d{12,14})$",
+        description="cEAN: a GTIN-8/12/13/14, or SEM GTIN.",
+    )
     freight: float | None = Field(default=None)
     insurance: float | None = Field(default=None)
     discount: float | None = Field(default=None)
