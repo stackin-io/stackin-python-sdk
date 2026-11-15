@@ -277,3 +277,27 @@ class TestIbsCbs(unittest.TestCase):
     def test_a_zero_rate_is_allowed(self):
         """A municipality with no IBS rate is a real case, not an error."""
         self.assertEqual(IbsCbs(**self.group(rate_city=0)).rate_city, 0)
+
+
+class TestNcm(unittest.TestCase):
+    """The full 8 digits, or 00 for a service line; else SEFAZ 777."""
+
+    def test_an_eight_digit_ncm_is_accepted(self):
+        product = Product(description="Teclado", ncm="84713012")
+
+        self.assertEqual(product.ncm, "84713012")
+
+    def test_00_for_a_service_line_is_accepted(self):
+        product = Product(description="Instalacao", ncm="00")
+
+        self.assertEqual(product.ncm, "00")
+
+    def test_a_two_digit_chapter_is_refused(self):
+        for ncm in ("84", "12"):
+            with self.subTest(ncm=ncm), self.assertRaises(ValidationError):
+                Product(description="Teclado", ncm=ncm)
+
+    def test_any_other_length_is_refused(self):
+        for ncm in ("8471301", "847130120", "8471301A"):
+            with self.subTest(ncm=ncm), self.assertRaises(ValidationError):
+                Product(description="Teclado", ncm=ncm)
