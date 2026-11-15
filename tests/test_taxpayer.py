@@ -22,9 +22,7 @@ class GetTest(unittest.TestCase):
 
         args, kwargs = request.call_args
         self.assertEqual(args[0], "GET")
-        self.assertEqual(
-            args[1], "https://sdk.test/api/v1/taxpayers/00000000000191"
-        )
+        self.assertEqual(args[1], "https://sdk.test/api/v1/taxpayers/00000000000191")
         self.assertEqual(kwargs["params"], {"country": "BR"})
 
     def test_an_unknown_tax_id_is_an_api_error(self):

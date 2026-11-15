@@ -20,9 +20,7 @@ def main():
         cest="0300700",
         tax_benefit_code="PR820001",
         presumed_credits=[
-            PresumedCredit(
-                code="PR820001", percentage=3.0, unit_price=Decimal("2.40")
-            ),
+            PresumedCredit(code="PR820001", percentage=3.0, amount=2.40),
         ],
     )
 
