@@ -320,7 +320,7 @@ Three things worth knowing before you loop:
 - `stackin.APIError` — the API responded with a non-2xx status (`status_code`, `detail`) — a 401 here means `api_key` is missing, wrong, or was rotated.
 - `stackin.ConnectionFailedError` — the API didn't respond (network/DNS/timeout).
 - `ValueError` — `issue()`'s `items` is empty, missing `ncm`/`cfop` on an item for NFE, an item `description` over 120 characters on NFE (the `xProd` limit; NFSE has no such limit), any string in an NFE request with a character the NF-e cannot carry (outside ISO-8859-1, latin1: an emoji, CJK, Cyrillic…; the error names the field — typographic quotes, dashes, ellipsis, bullet, `€` and `™` are not refused, the API converts them and folds tabs and line breaks into a space), or a missing/incomplete `recipient_address` on NFE.
-- `pydantic.ValidationError` (a `ValueError`) — a model built with a value the NF-e 4.00 XSD refuses: an `ncm` that is not 8 digits (or `00` for a service line), a `barcode` that is not `SEM GTIN` or an 8/12/13/14-digit GTIN, or an `Address` `street`/`neighborhood` under 2 characters once trimmed.
+- `pydantic.ValidationError` (a `ValueError`) — a model built with a value the NF-e 4.00 XSD refuses: an `ncm` that is not 8 digits (or `00` for a service line), a `barcode` that is not `SEM GTIN` or an 8/12/13/14-digit GTIN with a valid GS1 check digit, or an `Address` `street`/`neighborhood` under 2 characters once trimmed.
 
 Building the full fiscal document (issuer data, service code, tax groups, schema-accurate XML) is the API's job — configured once per company, not passed on every call.
 
