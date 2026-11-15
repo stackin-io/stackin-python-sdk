@@ -51,7 +51,6 @@ _NFE_ADDRESS_FIELDS = (
     "city",
     "state",
     "zip_code",
-    "city_code",
 )
 
 
@@ -115,9 +114,7 @@ def _validate_nfe_latin1(payload: dict) -> None:
         )
 
 
-_NFSE_RETAINED_ADDRESS_FIELDS = tuple(
-    field for field in _NFE_ADDRESS_FIELDS if field != "city_code"
-)
+_NFSE_RETAINED_ADDRESS_FIELDS = _NFE_ADDRESS_FIELDS
 
 
 def _validate_nfse_retained_address(address: Address | None) -> None:
@@ -240,9 +237,17 @@ class Invoice(_Client):
         recipient_address: Address | None = None,
         series: str | None = None,
         number: str | None = None,
+        external_reference: str | None = None,
         idempotency_key: str | None = None,
     ) -> dict:
-        """Issues a fiscal document."""
+        """Issues a fiscal document.
+
+        `city_code` may be left off the address: the API resolves the
+        IBGE code from city and state. `external_reference` is the
+        caller's own id for the document, an order number say, returned
+        on every read and webhook. It never reaches the XML, so the
+        Latin-1 check does not apply to it.
+        """
         if not items:
             raise ValueError("items can't be empty")
 
@@ -276,6 +281,8 @@ class Invoice(_Client):
             payload["number"] = number
         if document_type is DocumentType.NFE:
             _validate_nfe_latin1(payload)
+        if external_reference:
+            payload["external_reference"] = external_reference
 
         return cast(
             dict,

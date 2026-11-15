@@ -146,12 +146,14 @@ client.issue(
         city="Rio de Janeiro",
         state="RJ",
         zip_code="22010000",
-        city_code="3304557",
     ),
+    external_reference="order-1234",
 )
 ```
 
-`recipient_address` is an `Address` — the buyer's address, **required for NFE**. On NFE every field is required, `city_code` (the 7-digit IBGE municipality code) included: it becomes `enderDest` on the wire and the SEFAZ rejects a partial one. `state` is also what resolves `idDest` — a buyer in another state is emitted as an interstate operation automatically. On NFSE it is the tomador's address: optional, except when any item has `tax_retained=True` (the ISSQN retained by the tomador), where the city authorizer refuses the document without it (`E0237`) — then every field except `city_code` is required. In both cases a missing or incomplete address raises a `ValueError` locally, before the request goes out.
+`external_reference` is your own id for the document — an order number, a ticket. It is stored as sent, returned on every read and webhook, and `GET /invoices?external_reference=` finds the document by it.
+
+`recipient_address` is an `Address` — the buyer's address, **required for NFE**. On NFE street, number, neighborhood, city, state and zip code are required: it becomes `enderDest` on the wire and the SEFAZ rejects a partial one. `city_code` (the 7-digit IBGE municipality code) may be left out — the API resolves it from city and state and answers `CITY_NOT_FOUND` (422) when it cannot; send it yourself when the name is ambiguous. `state` is also what resolves `idDest` — a buyer in another state is emitted as an interstate operation automatically. On NFSE it is the tomador's address: optional, except when any item has `tax_retained=True` (the ISSQN retained by the tomador), where the city authorizer refuses the document without it (`E0237`) — then every field except `city_code` is required. In both cases a missing or incomplete address raises a `ValueError` locally, before the request goes out.
 
 `items` is a list of `Product` (`stackin.br`) — `description`/`amount` apply to any document type; `ncm`/`cfop` (plus everything else on `Product`: `cest`, tax groups, presumed credits...) are Brazil-specific and required per item for NFE, ignored for NFSE (a service isn't a physical good). `ncm` is the full 8 digits, or `00` for a service line — the SEFAZ rejects any other short code (rejection `777`), so one fails at construction.
 

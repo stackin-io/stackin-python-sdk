@@ -191,7 +191,7 @@ class TestClientIssueValidation(unittest.TestCase):
 
     def test_rejects_partial_recipient_address_for_nfe(self):
         item = Product(description="Produto", amount=10.0, ncm="12345678", cfop="5102")
-        with self.assertRaisesRegex(ValueError, "city_code"):
+        with self.assertRaisesRegex(ValueError, "zip_code"):
             self.client.issue(
                 document_type=DocumentType.NFE,
                 client_name="Buyer",
@@ -199,6 +199,48 @@ class TestClientIssueValidation(unittest.TestCase):
                 items=[item],
                 recipient_address=Address(state="SC"),
             )
+
+    def test_an_nfe_address_without_city_code_is_sent(self):
+        """The API resolves the IBGE code from city and state."""
+        item = Product(description="Produto", amount=10.0, ncm="12345678", cfop="5102")
+        address = Address(
+            street="Rua A",
+            number="1",
+            neighborhood="Centro",
+            city="Blumenau",
+            state="SC",
+            zip_code="89010000",
+        )
+        with patch.object(self.client, "_request", return_value={}) as sent:
+            self.client.issue(
+                document_type=DocumentType.NFE,
+                client_name="Buyer",
+                tax_id="123",
+                items=[item],
+                recipient_address=address,
+            )
+        body = sent.call_args.kwargs["json"]
+        self.assertNotIn("city_code", body["recipient_address"])
+
+    def test_external_reference_is_sent_only_when_given(self):
+        item = Product(description="Serviço", amount=10.0)
+        with patch.object(self.client, "_request", return_value={}) as sent:
+            self.client.issue(
+                document_type=DocumentType.NFSE,
+                client_name="Buyer",
+                tax_id="123",
+                items=[item],
+                external_reference="order-1234 ✓",
+            )
+            self.client.issue(
+                document_type=DocumentType.NFSE,
+                client_name="Buyer",
+                tax_id="123",
+                items=[item],
+            )
+        first, second = (call.kwargs["json"] for call in sent.call_args_list)
+        self.assertEqual(first["external_reference"], "order-1234 ✓")
+        self.assertNotIn("external_reference", second)
 
 
 class TestClientLatin1(unittest.TestCase):
