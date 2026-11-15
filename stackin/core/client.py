@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+import re
+from typing import Any, cast
 
 import requests
 
@@ -37,6 +38,12 @@ def _resolve_base_url(
     return DEFAULT_BASE_URL
 
 
+_NFE_DESCRIPTION_MAX = 120
+
+# cUF+AAMM, then the issuer CNPJ (alphanumeric from July 2026: letters
+# in its first 12 positions), then the rest. Same check as the API's.
+_NFE_ACCESS_KEY = re.compile(r"[0-9]{6}[0-9A-Z]{12}[0-9]{26}")
+
 _NFE_ADDRESS_FIELDS = (
     "street",
     "number",
@@ -59,6 +66,77 @@ def _validate_nfe_address(address: Address | None) -> None:
         raise ValueError(
             "recipient_address is missing required fields for NFE: "
             + ", ".join(missing)
+        )
+
+
+# What the API converts before its own latin1 check (stackin-api#228):
+# typographic quotes, dashes, ellipsis, bullet, euro and trademark.
+# Those are not refused here; the SDK does not translate them either.
+_API_CONVERTED = frozenset(
+    "\u2018\u2019\u201a\u201c\u201d\u201e\u2013\u2014\u2212\u2026\u2022\u20ac\u2122"
+)
+
+
+def _first_non_latin1(value: Any, path: str) -> tuple[str, str] | None:
+    """The first character in `value` the NF-e cannot carry, with its path.
+
+    Anything up to U+00FF passes (tab, newline and CR included: the API
+    folds them into a space), and so does what the API converts.
+    """
+    if isinstance(value, str):
+        for char in value:
+            if char > "\u00ff" and char not in _API_CONVERTED:
+                return path, char
+        return None
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            child = f"{path}.{key}" if path else str(key)
+            if found := _first_non_latin1(nested, child):
+                return found
+        return None
+    if isinstance(value, (list, tuple)):
+        for index, nested in enumerate(value):
+            if found := _first_non_latin1(nested, f"{path}[{index}]"):
+                return found
+    return None
+
+
+def _validate_nfe_latin1(payload: dict) -> None:
+    """NF-e is encoded in ISO-8859-1; the SEFAZ refuses anything else.
+
+    Walks every string the request would carry, so a free-text field
+    added later is covered without being listed here. Refuses only what
+    the API would refuse after its own normalisation, never more.
+    """
+    if found := _first_non_latin1(payload, ""):
+        path, char = found
+        raise ValueError(
+            f"{path} contains a character outside ISO-8859-1 (latin1), "
+            f"which NF-e does not accept: '{char}'"
+        )
+
+
+_NFSE_RETAINED_ADDRESS_FIELDS = _NFE_ADDRESS_FIELDS
+
+
+def _validate_nfse_retained_address(address: Address | None) -> None:
+    """Retained ISSQN needs the tomador's address — the authorizer refuses
+    the document without it (E0237). Every field but city_code."""
+    if address is None:
+        raise ValueError(
+            "recipient_address is required on an NFS-e when any item "
+            "has tax_retained=true (ISSQN retained by the tomador)"
+        )
+
+    missing = [
+        field
+        for field in _NFSE_RETAINED_ADDRESS_FIELDS
+        if not getattr(address, field)
+    ]
+    if missing:
+        raise ValueError(
+            "recipient_address is missing required fields for NFSE with "
+            "tax_retained=true: " + ", ".join(missing)
         )
 
 
@@ -171,13 +249,19 @@ class Invoice(_Client):
         `city_code` may be left off the address: the API resolves the
         IBGE code from city and state. `external_reference` is the
         caller's own id for the document, an order number say, returned
-        on every read and webhook.
+        on every read and webhook. It never reaches the XML, so the
+        Latin-1 check does not apply to it.
         """
         if not items:
             raise ValueError("items can't be empty")
 
         if document_type is DocumentType.NFE:
             for index, item in enumerate(items):
+                if len(item.description) > _NFE_DESCRIPTION_MAX:
+                    raise ValueError(
+                        f"items[{index}].description exceeds "
+                        f"{_NFE_DESCRIPTION_MAX} characters (NF-e xProd limit)"
+                    )
                 if not item.ncm:
                     raise ValueError(f"items[{index}].ncm is required for NFE")
                 if not item.cfop:
@@ -185,8 +269,11 @@ class Invoice(_Client):
                         f"items[{index}].cfop is required for NFE"
                     )
             _validate_nfe_address(recipient_address)
+        retained = any(item.tax_retained for item in items)
+        if document_type is DocumentType.NFSE and retained:
+            _validate_nfse_retained_address(recipient_address)
 
-        payload = {
+        payload: dict[str, Any] = {
             "document_type": document_type.value,
             "client_name": client_name,
             "tax_id": tax_id,
@@ -198,14 +285,19 @@ class Invoice(_Client):
             payload["series"] = series
         if number:
             payload["number"] = number
+        if document_type is DocumentType.NFE:
+            _validate_nfe_latin1(payload)
         if external_reference:
             payload["external_reference"] = external_reference
 
-        return self._request(
-            "POST",
-            "/invoices",
-            json=payload,
-            idempotency_key=idempotency_key,
+        return cast(
+            dict,
+            self._request(
+                "POST",
+                "/invoices",
+                json=payload,
+                idempotency_key=idempotency_key,
+            ),
         )
 
     def consult(
@@ -217,7 +309,10 @@ class Invoice(_Client):
         """Consults a fiscal document by its access key."""
         params = {"document_type": document_type.value}
 
-        return self._request("GET", f"/invoices/{access_key}", params=params)
+        return cast(
+            dict,
+            self._request("GET", f"/invoices/{access_key}", params=params),
+        )
 
     def cancel(
         self,
@@ -239,11 +334,14 @@ class Invoice(_Client):
             "reason": reason,
         }
 
-        return self._request(
-            "POST",
-            f"/invoices/{access_key}/cancel",
-            json=payload,
-            idempotency_key=idempotency_key,
+        return cast(
+            dict,
+            self._request(
+                "POST",
+                f"/invoices/{access_key}/cancel",
+                json=payload,
+                idempotency_key=idempotency_key,
+            ),
         )
 
     def invalidate(
@@ -267,7 +365,10 @@ class Invoice(_Client):
             "reason": reason,
         }
 
-        return self._request("POST", "/invoices/invalidations", json=payload)
+        return cast(
+            dict,
+            self._request("POST", "/invoices/invalidations", json=payload),
+        )
 
     def correct(
         self,
@@ -276,7 +377,20 @@ class Invoice(_Client):
         document_type: DocumentType,
         correction: str,
     ) -> dict:
-        """Files a correction letter (CC-e) against an issued document."""
+        """Files a correction letter (CC-e) against an issued NF-e.
+
+        Only an NF-e has one, so the access key must be an NF-e access
+        key (44 characters; the CNPJ slot may carry letters); an NFS-e is
+        cancelled and issued again instead. That is checked here. An NF-e
+        key sent with DocumentType.NFSE, or one
+        for a document the API does not hold, is still answered by the
+        API as an APIError with status 409.
+        """
+        if not _NFE_ACCESS_KEY.fullmatch(access_key):
+            raise ValueError(
+                "correct is NFe only. NFSe has no correction letter — "
+                "cancel and reissue instead."
+            )
         if not 15 <= len(correction) <= 1000:
             raise ValueError("correction must be 15 to 1000 characters")
 
@@ -285,18 +399,24 @@ class Invoice(_Client):
             "correction": correction,
         }
 
-        return self._request(
-            "POST", f"/invoices/{access_key}/correction", json=payload
+        return cast(
+            dict,
+            self._request(
+                "POST", f"/invoices/{access_key}/correction", json=payload
+            ),
         )
 
     def reissue(
         self, invoice_id: str, *, idempotency_key: str | None = None
     ) -> dict:
         """Retries a previous invoice submission by its local id."""
-        return self._request(
-            "POST",
-            f"/invoices/{invoice_id}/reissue",
-            idempotency_key=idempotency_key,
+        return cast(
+            dict,
+            self._request(
+                "POST",
+                f"/invoices/{invoice_id}/reissue",
+                idempotency_key=idempotency_key,
+            ),
         )
 
     def pdf(
@@ -337,7 +457,9 @@ class Invoice(_Client):
         if offset is not None:
             params["offset"] = offset
 
-        return self._request("GET", "/received-invoices", params=params)
+        return cast(
+            dict, self._request("GET", "/received-invoices", params=params)
+        )
 
     def history(
         self,
@@ -368,7 +490,7 @@ class Invoice(_Client):
         if order_by is not None:
             params["order_by"] = order_by
 
-        return self._request("GET", "/invoices", params=params)
+        return cast(dict, self._request("GET", "/invoices", params=params))
 
     def submissions(self, invoice_id: str) -> list:
         """Every attempt made for one invoice, and what came back.
@@ -376,7 +498,9 @@ class Invoice(_Client):
         consult() gives the status; this gives the reason. Takes the
         invoice_id because a rejected document has no access key.
         """
-        return self._request("GET", f"/invoices/{invoice_id}/submissions")
+        return cast(
+            list, self._request("GET", f"/invoices/{invoice_id}/submissions")
+        )
 
     def manifest(
         self,
@@ -407,8 +531,11 @@ class Invoice(_Client):
         if reason:
             payload["reason"] = reason
 
-        return self._request(
-            "POST",
-            f"/received-invoices/{access_key}/manifestation",
-            json=payload,
+        return cast(
+            dict,
+            self._request(
+                "POST",
+                f"/received-invoices/{access_key}/manifestation",
+                json=payload,
+            ),
         )
