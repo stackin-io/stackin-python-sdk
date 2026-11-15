@@ -365,6 +365,21 @@ class TestClientCorrect(unittest.TestCase):
                 )
             mock_request.assert_not_called()
 
+    def test_a_44_digit_key_sent_as_nfse_is_left_to_the_api(self):
+        """Only the API knows the document type is wrong: it answers 409."""
+        with patch("stackin.core.client.requests.request") as mock_request:
+            mock_request.return_value = FakeResponse(
+                409, json_data={"detail": "correction is NF-e only"}
+            )
+            with self.assertRaises(APIError) as raised:
+                self.client.correct(
+                    self.key,
+                    document_type=DocumentType.NFSE,
+                    correction=self.text,
+                )
+        mock_request.assert_called_once()
+        self.assertEqual(raised.exception.status_code, 409)
+
     def test_rejects_a_key_that_is_not_44_digits(self):
         message = (
             "correct is NFe only. NFSe has no correction letter — "

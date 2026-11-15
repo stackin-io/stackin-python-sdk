@@ -280,7 +280,10 @@ class Invoice(_Client):
         """Files a correction letter (CC-e) against an issued NF-e.
 
         Only an NF-e has one, so the access key must be the NF-e's 44
-        digits; an NFS-e is cancelled and issued again instead.
+        digits; an NFS-e is cancelled and issued again instead. That is
+        checked here. A 44-digit key sent with DocumentType.NFSE, or one
+        for a document the API does not hold, is still answered by the
+        API as an APIError with status 409.
         """
         if not _NFE_ACCESS_KEY.fullmatch(access_key):
             raise ValueError(
