@@ -5,7 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Annotated, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from stackin.br.tax import Tax
 
@@ -47,6 +47,16 @@ _BR_FIELDS = {
     "ibs_cbs",
     "tax",
 }
+
+
+def _gtin_check_digit_ok(gtin: str) -> bool:
+    """GS1 modulo 10: weights 3,1,3,1... from the right, check excluded."""
+    body = gtin[-2::-1]
+    total = sum(
+        int(digit) * (3 if index % 2 == 0 else 1)
+        for index, digit in enumerate(body)
+    )
+    return (10 - total % 10) % 10 == int(gtin[-1])
 
 
 def _decimal_str(value: Decimal | None) -> str | None:
@@ -119,6 +129,16 @@ class Product(BaseModel):
     observations: str | None = Field(
         default=None, max_length=2000, description="nfse only."
     )
+
+    @field_validator("barcode")
+    @classmethod
+    def _valid_gtin_check_digit(cls, value: str | None) -> str | None:
+        """Runs after the pattern: SEM GTIN or digits by now."""
+        if value is None or not value.isdigit():
+            return value
+        if not _gtin_check_digit_ok(value):
+            raise ValueError("barcode has an invalid GTIN check digit")
+        return value
 
     def to_dict(self) -> dict:
         """Returns the item as a plain dict, ready for the request body."""
