@@ -216,15 +216,51 @@ class TestClientLatin1(unittest.TestCase):
         ):
             self.issue(item={"description": "Cafe \U0001f600"})
 
+    def test_what_the_api_converts_is_accepted(self):
+        """Quotes, dashes, ellipsis, bullet, euro, trademark: the API maps them."""
+        mock_request = self.issue(
+            client_name="Buyer \u2014 Ltda",
+            item={
+                "description": "\u201cTeclado\u201d \u2014 2 un\u2026 \u20ac10\u2122",
+                "purchase_order": "PO\u2013\u2018x\u2019\u201a\u201e\u2212\u2022",
+            },
+            address={"city": "Santa Barbara d\u2019Oeste"},
+        )
+
+        mock_request.assert_called_once()
+
+    def test_tabs_and_line_breaks_are_accepted(self):
+        mock_request = self.issue(item={"description": "a\tb\nc\rd"})
+
+        mock_request.assert_called_once()
+
+    def test_accented_latin1_is_accepted(self):
+        mock_request = self.issue(item={"description": "\u00e9 \u00e7 \u00e3"})
+
+        mock_request.assert_called_once()
+
+    def test_cjk_and_cyrillic_are_refused(self):
+        for char in ("\u4e2d", "\u0416", "\U0001f525"):
+            with (
+                self.subTest(char=char),
+                self.assertRaisesRegex(
+                    ValueError,
+                    r"^items\[0\]\.description contains a character outside "
+                    r"ISO-8859-1 \(latin1\), which NF-e does not accept: "
+                    f"'{char}'$",
+                ),
+            ):
+                self.issue(item={"description": f"Teclado {char}"})
+
     def test_the_client_name_is_checked(self):
-        with self.assertRaisesRegex(ValueError, "^client_name contains"):
-            self.issue(client_name="Buyer \u2014 Ltda")
+        with self.assertRaisesRegex(ValueError, "^client_name contains .*'\u0416'"):
+            self.issue(client_name="Buyer \u0416")
 
     def test_every_address_field_is_checked(self):
         with self.assertRaisesRegex(
-            ValueError, r"^recipient_address\.city contains .*'\u2019'"
+            ValueError, r"^recipient_address\.city contains .*'\u4e2d'"
         ):
-            self.issue(address={"city": "Santa Barbara d\u2019Oeste"})
+            self.issue(address={"city": "Santa Barbara \u4e2d"})
 
     def test_the_unit_and_purchase_order_are_checked(self):
         with self.assertRaisesRegex(ValueError, r"^items\[0\]\.product\.unit contains"):
@@ -232,11 +268,7 @@ class TestClientLatin1(unittest.TestCase):
         with self.assertRaisesRegex(
             ValueError, r"^items\[0\]\.product\.purchase_order contains"
         ):
-            self.issue(item={"purchase_order": "PO\u20ac1"})
-
-    def test_a_control_character_is_refused(self):
-        with self.assertRaisesRegex(ValueError, "outside ISO-8859-1"):
-            self.issue(item={"description": "linha\num"})
+            self.issue(item={"purchase_order": "PO\U0001f525"})
 
     def test_nfse_is_not_checked(self):
         mock_request = self.issue(
