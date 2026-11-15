@@ -151,7 +151,7 @@ client.issue(
 )
 ```
 
-`recipient_address` is an `Address` — the buyer's address, **required for NFE** and ignored for NFSE. Every field is required, `city_code` (the 7-digit IBGE municipality code) included: it becomes `enderDest` on the wire and the SEFAZ rejects a partial one. `state` is also what resolves `idDest` — a buyer in another state is emitted as an interstate operation automatically. A missing or incomplete address raises a `ValueError` locally, before the request goes out.
+`recipient_address` is an `Address` — the buyer's address, **required for NFE**, and on NFSE required only when an item has `tax_retained=True` (the tomador retaining the ISSQN must be identified with an address). Every field is required, `city_code` (the 7-digit IBGE municipality code) included: it becomes `enderDest` on the wire and the SEFAZ rejects a partial one. `state` is also what resolves `idDest` — a buyer in another state is emitted as an interstate operation automatically. A missing or incomplete address raises a `ValueError` locally, before the request goes out.
 
 `items` is a list of `Product` (`stackin.br`) — `description`/`amount` apply to any document type; `ncm`/`cfop` (plus everything else on `Product`: `cest`, tax groups, presumed credits...) are Brazil-specific and required per item for NFE, ignored for NFSE (a service isn't a physical good).
 
@@ -319,7 +319,7 @@ Three things worth knowing before you loop:
 
 - `stackin.APIError` — the API responded with a non-2xx status (`status_code`, `detail`) — a 401 here means `api_key` is missing, wrong, or was rotated.
 - `stackin.ConnectionFailedError` — the API didn't respond (network/DNS/timeout).
-- `ValueError` — `issue()`'s `items` is empty, missing `ncm`/`cfop` on an item for NFE, or a missing/incomplete `recipient_address` on NFE.
+- `ValueError` — `issue()`'s `items` is empty, missing `ncm`/`cfop` on an item for NFE, a missing/incomplete `recipient_address` on NFE, or a missing `recipient_address` on NFSE when any item has `tax_retained=True` (the ISSQN retained by the tomador).
 
 Building the full fiscal document (issuer data, service code, tax groups, schema-accurate XML) is the API's job — configured once per company, not passed on every call.
 

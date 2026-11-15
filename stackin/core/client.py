@@ -179,6 +179,13 @@ class Invoice(_Client):
                         f"items[{index}].cfop is required for NFE"
                     )
             _validate_nfe_address(recipient_address)
+        retained = any(item.tax_retained for item in items)
+        is_nfse = document_type is DocumentType.NFSE
+        if is_nfse and retained and recipient_address is None:
+            raise ValueError(
+                "recipient_address is required on an NFS-e when any item "
+                "has tax_retained=true (ISSQN retained by the tomador)"
+            )
 
         payload = {
             "document_type": document_type.value,
