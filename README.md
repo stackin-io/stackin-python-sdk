@@ -321,7 +321,7 @@ Three things worth knowing before you loop:
 - `stackin.ConnectionFailedError` — the API didn't respond (network/DNS/timeout).
 - `ValueError` — `issue()`'s `items` is empty, missing `ncm`/`cfop` on an item for NFE, an item `description` over 120 characters on NFE (the `xProd` limit; NFSE has no such limit), any string in an NFE request with a character outside ISO-8859-1 (latin1, U+0020..U+00FF — an emoji, a curly quote, an em dash, a line break; the error names the field), a missing/incomplete `recipient_address` on NFE, or a missing `recipient_address` on NFSE when any item has `tax_retained=True` (the ISSQN retained by the tomador).
 - `ValueError` — `correct()` with an access key that is not the NF-e's 44 digits: a correction letter exists only on NF-e; an NFS-e is cancelled and reissued instead.
-- `pydantic.ValidationError` (a `ValueError`) — a model built with a value the NF-e 4.00 XSD refuses: an `ncm` that is not 8 digits, a `barcode` that is not `SEM GTIN` or an 8/12/13/14-digit GTIN with a valid GS1 check digit, or an `Address` `street`/`neighborhood` under 2 characters once trimmed.
+- `pydantic.ValidationError` (a `ValueError`) — a model built with a value the NF-e 4.00 XSD refuses: an `ncm` that is not 8 digits (or `00` for a service line), a `barcode` that is not `SEM GTIN` or an 8/12/13/14-digit GTIN with a valid GS1 check digit, or an `Address` `street`/`neighborhood` under 2 characters once trimmed.
 
 Building the full fiscal document (issuer data, service code, tax groups, schema-accurate XML) is the API's job — configured once per company, not passed on every call.
 
