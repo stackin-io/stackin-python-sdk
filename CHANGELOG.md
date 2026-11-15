@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.12.0 — 2026-11-15
+
+### Features
+- **client:** external_reference on issue, city_code optional
+
+### Docs
+- external_reference and the optional city_code
+
 ## v0.11.0 — 2026-11-15
 
 ### Features
