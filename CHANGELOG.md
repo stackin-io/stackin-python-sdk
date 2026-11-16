@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.15.0 — 2026-11-16
+
+### Features
+- **address:** state_registration for the recipient's IE (#33)
+
+### Tests
+- **address:** state_registration masks, ISENTO and refusal (#33)
+
 ## v0.14.0 — 2026-11-15
 
 ### Features
