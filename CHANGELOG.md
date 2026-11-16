@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.14.0 — 2026-11-15
+
+### Features
+- **client:** discount, issued_at, purpose, direction, referenced_keys and a buyer abroad on issue()
+- **product:** typed fuel group (comb) on br.Product
+
+### Docs
+- **readme:** document the API v0.8-v0.9 issue() fields
+
 ## v0.13.0 — 2026-11-15
 
 ### Features
