@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -25,6 +27,27 @@ class Address(BaseModel):
         ),
     )
     country_name: str | None = Field(default=None)
+    state_registration: str | None = Field(
+        default=None,
+        description=(
+            "Recipient's IE (inscrição estadual), NF-e only. Send it for a "
+            "recipient registered as an ICMS contributor; ISENTO for an "
+            "exempt one; leave it out for a non-contributor."
+        ),
+    )
+
+    @field_validator("state_registration")
+    @classmethod
+    def _state_registration(cls, value: str | None) -> str | None:
+        """Digits (mask dropped) or ISENTO, as the API takes it."""
+        if value is None:
+            return None
+        cleaned = re.sub(r"[\s./-]", "", value).upper()
+        if cleaned != "ISENTO" and not re.fullmatch(r"[0-9]{2,14}", cleaned):
+            raise ValueError(
+                "state_registration takes 2 to 14 digits, or ISENTO"
+            )
+        return cleaned
 
     @field_validator("street", "neighborhood")
     @classmethod

@@ -86,3 +86,22 @@ class TestAddressAbroad(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestStateRegistration(unittest.TestCase):
+    def test_a_masked_ie_is_sent_as_digits(self):
+        address = Address(state="SC", state_registration="264.555.279")
+        self.assertEqual(address.to_dict()["state_registration"], "264555279")
+
+    def test_isento_in_any_case(self):
+        self.assertEqual(
+            Address(state="SC", state_registration="isento").state_registration,
+            "ISENTO",
+        )
+
+    def test_letters_are_refused(self):
+        with self.assertRaises(ValidationError):
+            Address(state="SC", state_registration="ABC123")
+
+    def test_absent_it_is_not_sent(self):
+        self.assertNotIn("state_registration", Address(state="SC").to_dict())
