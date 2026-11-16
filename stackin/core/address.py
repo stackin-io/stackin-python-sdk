@@ -44,9 +44,7 @@ class Address(BaseModel):
             return None
         cleaned = re.sub(r"[\s./-]", "", value).upper()
         if cleaned != "ISENTO" and not re.fullmatch(r"[0-9]{2,14}", cleaned):
-            raise ValueError(
-                "state_registration takes 2 to 14 digits, or ISENTO"
-            )
+            raise ValueError("state_registration takes 2 to 14 digits, or ISENTO")
         return cleaned
 
     @field_validator("street", "neighborhood")
