@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from stackin.br import (
     CofinsNt,
+    Fuel,
     IbsCbs,
     IcmsSn102,
     PisNt,
@@ -411,3 +412,83 @@ class TestRecopiCheckDigits(unittest.TestCase):
                 ),
             ):
                 Product(description="Papel", recopi_number=recopi)
+
+
+class TestFuel(unittest.TestCase):
+    """The NF-e comb group, typed."""
+
+    REQUIRED = {
+        "anp_code": "210203001",
+        "anp_description": "GLP",
+        "consumer_state": "SP",
+    }
+
+    def test_serialized_under_br_fuel(self):
+        product = Product(
+            description="Botijao",
+            ncm="27111910",
+            cfop="5656",
+            fuel=Fuel.model_validate(
+                {**self.REQUIRED, "glp_percent": 100.0, "starting_value": 12.5}
+            ),
+        )
+
+        self.assertEqual(
+            product.to_dict()["product"]["br"]["fuel"],
+            {**self.REQUIRED, "glp_percent": 100.0, "starting_value": 12.5},
+        )
+
+    def test_every_optional_field_is_carried(self):
+        optional = {
+            "glp_percent": 60.0,
+            "natural_gas_national_percent": 30.0,
+            "natural_gas_imported_percent": 10.0,
+            "starting_value": 1.5,
+            "codif": "123456789",
+            "temperature_quantity": 1000.0,
+            "biodiesel_percent": 14.0,
+        }
+
+        fuel = Fuel.model_validate({**self.REQUIRED, **optional})
+
+        self.assertEqual(
+            fuel.model_dump(exclude_none=True), {**self.REQUIRED, **optional}
+        )
+
+    def test_absent_without_fuel(self):
+        product = Product(description="Teclado", ncm="84716052", cfop="5102")
+
+        self.assertNotIn("fuel", product.to_dict()["product"]["br"])
+
+    def test_each_required_field_is_required(self):
+        for field in self.REQUIRED:
+            fields = {k: v for k, v in self.REQUIRED.items() if k != field}
+            with self.subTest(field=field), self.assertRaises(ValidationError):
+                Fuel.model_validate(fields)
+
+    def test_anp_code_takes_nine_digits(self):
+        with self.assertRaises(ValidationError):
+            Fuel.model_validate({**self.REQUIRED, "anp_code": "21020300"})
+
+    def test_a_percent_over_100_is_refused(self):
+        with self.assertRaises(ValidationError):
+            Fuel.model_validate({**self.REQUIRED, "biodiesel_percent": 101})
+
+    def test_refused_together_with_extra_groups_comb(self):
+        with self.assertRaisesRegex(ValidationError, "send the fuel group once"):
+            Product(
+                description="Botijao",
+                fuel=Fuel.model_validate(self.REQUIRED),
+                extra_groups={"comb": {"cProdANP": "210203001"}},
+            )
+
+    def test_other_extra_groups_are_kept_beside_it(self):
+        product = Product(
+            description="Botijao",
+            fuel=Fuel.model_validate(self.REQUIRED),
+            extra_groups={"med": {"cProdANVISA": "1234567890123"}},
+        )
+
+        br = product.to_dict()["product"]["br"]
+        self.assertEqual(br["extra_groups"], {"med": {"cProdANVISA": "1234567890123"}})
+        self.assertIn("fuel", br)
