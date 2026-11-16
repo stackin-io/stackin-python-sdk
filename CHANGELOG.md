@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.15.1 — 2026-11-16
+
+### Style
+- **address:** ruff format (#33)
+
 ## v0.15.0 — 2026-11-16
 
 ### Features
