@@ -66,5 +66,23 @@ class TestAddressMinimumLength(unittest.TestCase):
         self.assertEqual(Address(state="SP").to_dict(), {"state": "SP"})
 
 
+class TestAddressAbroad(unittest.TestCase):
+    def test_country_fields_are_sent_when_set(self):
+        address = Address(state="EX", country_code="0639", country_name="Argentina")
+
+        self.assertEqual(
+            address.to_dict(),
+            {"state": "EX", "country_code": "0639", "country_name": "Argentina"},
+        )
+
+    def test_country_code_takes_one_to_four_digits(self):
+        for code in ("", "12345", "US"):
+            with self.subTest(code=code), self.assertRaises(ValidationError):
+                Address(country_code=code)
+
+    def test_the_bacen_check_digit_is_not_checked(self):
+        self.assertEqual(Address(country_code="9999").country_code, "9999")
+
+
 if __name__ == "__main__":
     unittest.main()

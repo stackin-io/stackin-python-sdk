@@ -12,6 +12,22 @@ class DocumentType(str, Enum):
     NFSE = "nfse"
 
 
+class Purpose(str, Enum):
+    """Why an NF-e is issued (finNFe)."""
+
+    NORMAL = "normal"
+    COMPLEMENTARY = "complementary"
+    ADJUSTMENT = "adjustment"
+    RETURN = "return"
+
+
+class Direction(str, Enum):
+    """Whether an NF-e records goods leaving (out) or entering (in) the issuer."""
+
+    OUT = "out"
+    IN = "in"
+
+
 class Environment(str, Enum):
     """Which host to talk to, instead of a raw `base_url`."""
 

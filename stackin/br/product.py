@@ -5,7 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from stackin.br.tax import Tax
 
@@ -29,6 +29,41 @@ class PresumedCredit(BaseModel):
     amount: float
 
 
+class Fuel(BaseModel):
+    """The NF-e fuel group (`comb`), needed for a fuel CFOP.
+
+    Groups it does not cover (CIDE, encerrante, origComb) still go
+    through `extra_groups["comb"]`, but never together with this one.
+    """
+
+    anp_code: str = Field(pattern=r"^[0-9]{9}$", description="cProdANP.")
+    anp_description: str = Field(min_length=2, max_length=95, description="descANP.")
+    consumer_state: str = Field(
+        pattern=r"^[A-Z]{2}$", description="UFCons, where it is consumed."
+    )
+    glp_percent: float | None = Field(
+        default=None, ge=0, le=100, description="pGLP, GLP only."
+    )
+    natural_gas_national_percent: float | None = Field(
+        default=None, ge=0, le=100, description="pGNn, GLP only."
+    )
+    natural_gas_imported_percent: float | None = Field(
+        default=None, ge=0, le=100, description="pGNi, GLP only."
+    )
+    starting_value: float | None = Field(
+        default=None, ge=0, description="vPart, GLP only."
+    )
+    codif: str | None = Field(
+        default=None, pattern=r"^[0-9]{1,21}$", description="CODIF."
+    )
+    temperature_quantity: float | None = Field(
+        default=None, ge=0, description="qTemp, at 20 degrees Celsius."
+    )
+    biodiesel_percent: float | None = Field(
+        default=None, ge=0, le=100, description="pBio."
+    )
+
+
 _CBENEF_PATTERN = r"^(SEM CBENEF|[\x21-\xff]{8}|[\x21-\xff]{10})$"
 
 _BR_FIELDS = {
@@ -46,6 +81,7 @@ _BR_FIELDS = {
     "extra_groups",
     "ibs_cbs",
     "tax",
+    "fuel",
 }
 
 
@@ -128,6 +164,9 @@ class Product(BaseModel):
     ibs_cbs: IbsCbs | None = Field(default=None)
     extra_groups: dict[str, Any] | None = Field(default=None)
     tax: Tax | dict[str, Any] | None = Field(default=None)
+    fuel: Fuel | None = Field(
+        default=None, description="The fuel group (comb), NF-e only."
+    )
 
     service_code: str | None = Field(
         default=None, description="LC 116/2003 item.subitem, nfse only."
@@ -163,6 +202,13 @@ class Product(BaseModel):
         if not _recopi_check_digits_ok(value):
             raise ValueError("recopi_number has invalid check digits")
         return value
+
+    @model_validator(mode="after")
+    def _one_fuel_group(self) -> Product:
+        """The API refuses the comb group sent twice."""
+        if self.fuel is not None and "comb" in (self.extra_groups or {}):
+            raise ValueError("send the fuel group once: fuel or extra_groups['comb']")
+        return self
 
     def to_dict(self) -> dict:
         """Returns the item as a plain dict, ready for the request body."""
