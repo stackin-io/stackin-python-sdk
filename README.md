@@ -153,9 +153,77 @@ client.issue(
 
 `external_reference` is your own id for the document — an order number, a ticket. It is stored as sent, returned on every read and webhook, and `GET /invoices?external_reference=` finds the document by it.
 
-`recipient_address` is an `Address` — the buyer's address, **required for NFE**. On NFE street, number, neighborhood, city, state and zip code are required: it becomes `enderDest` on the wire and the SEFAZ rejects a partial one. `city_code` (the 7-digit IBGE municipality code) may be left out — the API resolves it from city and state and answers `CITY_NOT_FOUND` (422) when it cannot; send it yourself when the name is ambiguous. `state` is also what resolves `idDest` — a buyer in another state is emitted as an interstate operation automatically. On NFSE it is the tomador's address: optional, except when any item has `tax_retained=True` (the ISSQN retained by the tomador), where the city authorizer refuses the document without it (`E0237`) — then every field except `city_code` is required. In both cases a missing or incomplete address raises a `ValueError` locally, before the request goes out.
+`recipient_address` is an `Address` — the buyer's address, **required for NFE**. On NFE street, number, neighborhood, city, state and zip code are required (a buyer abroad trades the zip code for a country, see [A buyer abroad](#a-buyer-abroad-nf-e)): it becomes `enderDest` on the wire and the SEFAZ rejects a partial one. `city_code` (the 7-digit IBGE municipality code) may be left out — the API resolves it from city and state and answers `CITY_NOT_FOUND` (422) when it cannot; send it yourself when the name is ambiguous. `state` is also what resolves `idDest` — a buyer in another state is emitted as an interstate operation automatically. On NFSE it is the tomador's address: optional, except when any item has `tax_retained=True` (the ISSQN retained by the tomador), where the city authorizer refuses the document without it (`E0237`) — then every field except `city_code` is required. In both cases a missing or incomplete address raises a `ValueError` locally, before the request goes out.
 
 `items` is a list of `Product` (`stackin.br`) — `description`/`amount` apply to any document type; `ncm`/`cfop` (plus everything else on `Product`: `cest`, tax groups, presumed credits...) are Brazil-specific and required per item for NFE, ignored for NFSE (a service isn't a physical good). `ncm` is the full 8 digits, or `00` for a service line — the SEFAZ rejects any other short code (rejection `777`), so one fails at construction. `recopi_number` must be the 20-digit RECOPI number; the SDK checks its two modulo-11 check digits (MOC §8.5) before sending.
+
+## Optional document fields
+
+Each of these is left out of the request body when unset, so a call that does not use them sends exactly what it sent before. The SDK checks only types and enums locally; the fiscal rules on them are the API's, answered as an `APIError` that names the rule.
+
+`discount` — a `Decimal` (zero or more) taken off the whole document; the API spreads it over the lines:
+
+```python
+client.issue(..., discount=Decimal("15.00"))
+```
+
+`issued_at` — the emission moment, a **timezone-aware** `datetime`, sent as ISO 8601 with its offset. A naive one raises `ValueError`. NF-e: at most 30 days back and 5 minutes ahead; NFS-e: never ahead.
+
+```python
+from datetime import datetime, timedelta, timezone
+
+client.issue(..., issued_at=datetime(2026, 11, 15, 9, 30, tzinfo=timezone(timedelta(hours=-3))))
+```
+
+`purpose` — NF-e only, why it is issued: `Purpose.NORMAL` (the default), `COMPLEMENTARY`, `ADJUSTMENT` or `RETURN`:
+
+```python
+from stackin import Purpose
+
+client.issue(..., purpose=Purpose.COMPLEMENTARY, referenced_keys=["3526..."])
+```
+
+`direction` — NF-e only: `Direction.OUT` (the default) or `Direction.IN`, an incoming note the company issues itself, such as goods returned by the buyer:
+
+```python
+from stackin import Direction
+
+client.issue(..., purpose=Purpose.RETURN, direction=Direction.IN, referenced_keys=["3526..."])
+```
+
+`referenced_keys` — NF-e only, a list of the 44-character access keys this note refers to: required for `COMPLEMENTARY` (exactly one) and, but for a few CFOPs, for `RETURN`:
+
+```python
+client.issue(..., purpose=Purpose.RETURN, referenced_keys=["35261112345678000195550010000000011000000014"])
+```
+
+### A buyer abroad (NF-e)
+
+A `recipient_address` with `state="EX"` is a buyer outside Brazil. There `tax_id` is left out, `zip_code` and `city_code` may be left out, and `country_code` (the BACEN code, not Brazil's 1058) is required, with `country_name` beside it. The SDK does not check the BACEN code's check digit: the official table has countries whose digit does not close.
+
+`foreign_id` — the buyer's passport or other document (5 to 20 characters), in place of a CPF/CNPJ:
+
+```python
+client.issue(..., recipient_address=Address(..., state="EX", country_code="2496", country_name="Estados Unidos"), foreign_id="P12345678")
+```
+
+`export` — an `Export` (`stackin.br`) naming where the goods leave Brazil, required for an outgoing note abroad: `exit_state` and `place`, optionally `dispatch_place`:
+
+```python
+from stackin.br import Export
+
+client.issue(..., export=Export(exit_state="SP", place="Porto de Santos"))
+```
+
+### Fuel (NF-e)
+
+`fuel` on a `Product` is the layout's fuel group (`comb`), needed for a fuel CFOP: `anp_code` (9 digits), `anp_description` and `consumer_state` are required; `glp_percent`, `natural_gas_national_percent`, `natural_gas_imported_percent`, `starting_value`, `codif`, `temperature_quantity` and `biodiesel_percent` are optional. It travels under the product's `fuel` key and is refused together with `extra_groups["comb"]`:
+
+```python
+from stackin.br import Fuel, Product
+
+Product(description="Gasolina C", ncm="27101259", cfop="5656", fuel=Fuel(anp_code="320102001", anp_description="GASOLINA C COMUM", consumer_state="SP"))
+```
 
 ## Retrying safely
 
