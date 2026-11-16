@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class Address(BaseModel):
-    """A plain postal address."""
+    """A plain postal address. State EX is a buyer abroad, NF-e only."""
 
     state: str | None = Field(default=None)
     city_code: str | None = Field(default=None)
@@ -15,6 +15,16 @@ class Address(BaseModel):
     neighborhood: str | None = Field(default=None)
     city: str | None = Field(default=None)
     zip_code: str | None = Field(default=None)
+    country_code: str | None = Field(
+        default=None,
+        pattern=r"^[0-9]{1,4}$",
+        description=(
+            "BACEN country code, 1 to 4 digits. Required, and not 1058, when "
+            "state is EX. Its check digit is not verified: the official "
+            "table has countries whose digit does not close."
+        ),
+    )
+    country_name: str | None = Field(default=None)
 
     @field_validator("street", "neighborhood")
     @classmethod

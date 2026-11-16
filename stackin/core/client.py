@@ -4,14 +4,24 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Sequence
+from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any, cast
 
 import requests
 
+from stackin.br.export import Export
 from stackin.br.product import Product
 from stackin.core.address import Address
 from stackin.core.exceptions import APIError, ConnectionFailedError
-from stackin.core.types import DocumentType, Environment, Manifestation
+from stackin.core.types import (
+    Direction,
+    DocumentType,
+    Environment,
+    Manifestation,
+    Purpose,
+)
 
 DEFAULT_BASE_URL = "https://sdk.stackin.io"
 
@@ -54,12 +64,36 @@ _NFE_ADDRESS_FIELDS = (
 )
 
 
+_NFE_ABROAD_ADDRESS_FIELDS = (
+    "street",
+    "number",
+    "neighborhood",
+    "city",
+    "state",
+    "country_code",
+)
+
+_ABROAD_STATE = "EX"
+
+
+def _is_abroad(address: Address | None) -> bool:
+    """State EX is a buyer outside Brazil."""
+    return address is not None and (address.state or "").upper() == _ABROAD_STATE
+
+
 def _validate_nfe_address(address: Address | None) -> None:
-    """NFE needs the full address — a partial one the SEFAZ rejects."""
+    """NFE needs the full address — a partial one the SEFAZ rejects.
+
+    A buyer abroad (state EX) has no CEP, so zip_code may be left out
+    there; the country it names is then required instead.
+    """
     if address is None:
         raise ValueError("recipient_address is required for NFE")
 
-    missing = [field for field in _NFE_ADDRESS_FIELDS if not getattr(address, field)]
+    required = (
+        _NFE_ABROAD_ADDRESS_FIELDS if _is_abroad(address) else _NFE_ADDRESS_FIELDS
+    )
+    missing = [field for field in required if not getattr(address, field)]
     if missing:
         raise ValueError(
             "recipient_address is missing required fields for NFE: "
@@ -115,6 +149,38 @@ def _validate_nfe_latin1(payload: dict) -> None:
 
 
 _NFSE_RETAINED_ADDRESS_FIELDS = _NFE_ADDRESS_FIELDS
+
+
+def _discount_str(discount: Decimal | int | float | str) -> str:
+    """The document discount as a decimal string, like the item amounts."""
+    try:
+        value = discount if isinstance(discount, Decimal) else Decimal(str(discount))
+    except InvalidOperation as error:
+        raise ValueError(f"discount must be a number, not {discount!r}") from error
+    if not value.is_finite() or value < 0:
+        raise ValueError("discount must be zero or more")
+    return format(value, "f")
+
+
+def _issued_at_str(issued_at: datetime) -> str:
+    """ISO 8601 with the offset; a naive value has no moment to send."""
+    if not isinstance(issued_at, datetime):
+        raise ValueError("issued_at must be a datetime")
+    if issued_at.utcoffset() is None:
+        raise ValueError(
+            "issued_at must be timezone-aware: a naive datetime does not "
+            "say which moment it is"
+        )
+    return issued_at.isoformat()
+
+
+def _referenced_keys_list(referenced_keys: Sequence[str]) -> list[str]:
+    """A bare string would be sent one character per key."""
+    if isinstance(referenced_keys, str) or not all(
+        isinstance(key, str) for key in referenced_keys
+    ):
+        raise ValueError("referenced_keys must be a list of access keys")
+    return list(referenced_keys)
 
 
 def _validate_nfse_retained_address(address: Address | None) -> None:
@@ -232,13 +298,20 @@ class Invoice(_Client):
         *,
         document_type: DocumentType,
         client_name: str,
-        tax_id: str,
+        tax_id: str | None = None,
         items: list[Product],
         recipient_address: Address | None = None,
         series: str | None = None,
         number: str | None = None,
         external_reference: str | None = None,
         idempotency_key: str | None = None,
+        discount: Decimal | None = None,
+        issued_at: datetime | None = None,
+        purpose: Purpose | None = None,
+        direction: Direction | None = None,
+        referenced_keys: list[str] | None = None,
+        foreign_id: str | None = None,
+        export: Export | None = None,
     ) -> dict:
         """Issues a fiscal document.
 
@@ -247,9 +320,24 @@ class Invoice(_Client):
         caller's own id for the document, an order number say, returned
         on every read and webhook. It never reaches the XML, so the
         Latin-1 check does not apply to it.
+
+        `tax_id` is required, except on an NF-e to a buyer abroad
+        (`recipient_address.state` EX), who is identified by
+        `foreign_id` instead and whose goods leave through `export`.
+        `discount` is spread by the API over the lines. `issued_at` must
+        be timezone-aware. `purpose`, `direction` and `referenced_keys`
+        are NF-e only. Each of these is left out of the body when unset;
+        the fiscal rules on them are the API's, answered as an APIError.
         """
         if not items:
             raise ValueError("items can't be empty")
+
+        abroad = document_type is DocumentType.NFE and _is_abroad(recipient_address)
+        if tax_id is None and not abroad:
+            raise ValueError(
+                "tax_id is required, except on an NF-e to a buyer abroad "
+                "(recipient_address.state EX)"
+            )
 
         if document_type is DocumentType.NFE:
             for index, item in enumerate(items):
@@ -270,19 +358,34 @@ class Invoice(_Client):
         payload: dict[str, Any] = {
             "document_type": document_type.value,
             "client_name": client_name,
-            "tax_id": tax_id,
-            "items": [item.to_dict() for item in items],
         }
+        if tax_id is not None:
+            payload["tax_id"] = tax_id
+        payload["items"] = [item.to_dict() for item in items]
         if recipient_address:
             payload["recipient_address"] = recipient_address.to_dict()
         if series:
             payload["series"] = series
         if number:
             payload["number"] = number
+        if export is not None:
+            payload["export"] = export.to_dict()
         if document_type is DocumentType.NFE:
             _validate_nfe_latin1(payload)
         if external_reference:
             payload["external_reference"] = external_reference
+        if discount is not None:
+            payload["discount"] = _discount_str(discount)
+        if issued_at is not None:
+            payload["issued_at"] = _issued_at_str(issued_at)
+        if purpose is not None:
+            payload["purpose"] = Purpose(purpose).value
+        if direction is not None:
+            payload["direction"] = Direction(direction).value
+        if referenced_keys is not None:
+            payload["referenced_keys"] = _referenced_keys_list(referenced_keys)
+        if foreign_id is not None:
+            payload["foreign_id"] = foreign_id
 
         return cast(
             dict,

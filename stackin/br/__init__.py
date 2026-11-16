@@ -1,5 +1,6 @@
 """Brazil-specific document fields."""
 
+from stackin.br.export import Export
 from stackin.br.product import Fuel, IbsCbs, PresumedCredit, Product
 from stackin.br.tax import (
     CofinsAliq,
@@ -43,6 +44,7 @@ from stackin.br.tax import (
 __all__ = [
     "Product",
     "Fuel",
+    "Export",
     "IbsCbs",
     "PresumedCredit",
     "Tax",

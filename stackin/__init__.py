@@ -10,7 +10,7 @@ from .core.client import Invoice
 from .core.exceptions import APIError, ConnectionFailedError, InvoiceError
 from .core.reference import KINDS, FiscalReference, Kind
 from .core.taxpayer import Taxpayer
-from .core.types import DocumentType, Environment, Manifestation
+from .core.types import Direction, DocumentType, Environment, Manifestation, Purpose
 
 __all__ = [
     "Invoice",
@@ -21,6 +21,8 @@ __all__ = [
     "DocumentType",
     "Environment",
     "Manifestation",
+    "Purpose",
+    "Direction",
     "Address",
     "InvoiceError",
     "APIError",
