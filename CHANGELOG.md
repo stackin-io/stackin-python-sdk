@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.16.0 — 2026-11-16
+
+### Features
+- **client:** company selection, companies() and typed company refusals (#36)
+
+### Docs
+- **readme:** document company selection and its errors (#36)
+
+### Tests
+- **client:** company header, companies() and the three refusals (#36)
+
 ## v0.15.1 — 2026-11-16
 
 ### Style
