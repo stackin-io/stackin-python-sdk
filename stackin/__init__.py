@@ -7,7 +7,14 @@ __description__ = (
 
 from .core.address import Address
 from .core.client import Invoice
-from .core.exceptions import APIError, ConnectionFailedError, InvoiceError
+from .core.exceptions import (
+    APIError,
+    CompanyNotInScopeError,
+    CompanyRequiredError,
+    ConnectionFailedError,
+    InsufficientPermissionError,
+    InvoiceError,
+)
 from .core.reference import KINDS, FiscalReference, Kind
 from .core.taxpayer import Taxpayer
 from .core.types import Direction, DocumentType, Environment, Manifestation, Purpose
@@ -27,4 +34,7 @@ __all__ = [
     "InvoiceError",
     "APIError",
     "ConnectionFailedError",
+    "CompanyRequiredError",
+    "CompanyNotInScopeError",
+    "InsufficientPermissionError",
 ]
