@@ -219,22 +219,29 @@ class _Client:
         api_key: str | None = None,
         timeout: int = 30,
         company: str | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         """`company` is the UUID or CNPJ every request names in the
         X-Stackin-Company header, for a credential that covers several
-        companies. Left unset, no header is sent."""
+        companies. Left unset, no header is sent.
+
+        `headers` are sent on every request, for a caller that has to
+        identify itself to the API (an integration name, a tool). They
+        never replace the SDK's own: Authorization, Idempotency-Key and
+        X-Stackin-Company always win."""
         resolved_url = _resolve_base_url(base_url, environment)
         self.base_url = resolved_url.rstrip("/")
         self.api_key = api_key or os.environ.get("STACKIN_API_KEY")
         self.timeout = timeout
         self.company = company
+        self.extra_headers = dict(headers or {})
 
     def _headers(
         self,
         idempotency_key: str | None = None,
         company: str | None = None,
     ) -> dict:
-        headers = {}
+        headers = dict(self.extra_headers)
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         if idempotency_key:
