@@ -402,6 +402,54 @@ Three things worth knowing before you loop:
 
 `Taxpayer` has one method and keeps one: the registry holds the names and addresses of real people, so there is no search over it, by design.
 
+## Saved clients
+
+The company keeps the recipients it issues to. A successful issuance saves a new
+recipient on its own; `Clients` reads and edits them, and `issue(client_id=...)`
+issues to one without retyping it.
+
+```python
+from stackin import ClientAlreadyExistsError, Clients, DocumentType, Invoice
+
+clients = Clients(api_key="...")
+
+page = clients.list(search="acme", limit=20)        # active ones, by name
+clients.list(is_active=False)                       # the deactivated ones
+clients.list(source="issued", sort_by="uses_count", order_by="desc")
+
+try:
+    acme = clients.create(name="ACME Ltda", tax_id="11.222.333/0001-81",
+                          email="nf@acme.test")
+except ClientAlreadyExistsError as error:
+    acme = clients.get(error.client_id)            # it was there already
+
+clients.update(acme["id"], phone="+5511999999999", notes=None)  # None clears
+clients.deactivate(acme["id"])                      # kept, hidden from list()
+clients.reactivate(acme["id"])
+
+Invoice(api_key="...").issue(
+    document_type=DocumentType.NFSE,
+    client_id=acme["id"],                           # name, tax_id, address from it
+    items=[...],
+)
+```
+
+- `list()` filters by `search` (part of the name, the tax id masked or not, or the
+  `foreign_id`), `source` (`manual`, `issued`, `issuance`) and `is_active` (the API
+  lists active clients when it is left out), and pages with `limit`/`offset`.
+  `sort_by` takes `name`, `last_used_at`, `created_at` or `uses_count`.
+- `update()` sends only the fields passed; `address` replaces the whole address. The
+  API checks the client as a whole, so clearing a Brazilian client's `tax_id` is
+  refused like a create without one.
+- On `issue()`, the client fills whichever of `client_name`, `tax_id`, `foreign_id`
+  and `recipient_address` are left out; the ones passed win. With `client_id` none
+  of those four is required by the SDK: the API checks the merged request. A
+  deactivated client is refused there (422) until it is reactivated.
+- `update_client=True` on `issue()` rewrites an existing client with that request's
+  recipient data. Left out, the issuance only counts one more use of it.
+- Reading needs `invoice:read`; creating, editing and deactivating need
+  `invoice:issue`. `company` works here as everywhere else.
+
 ## Several companies
 
 An API key belongs to one company and needs none of this. An OAuth credential may
@@ -432,8 +480,9 @@ the API ignores it there.
 - `stackin.CompanyRequiredError` (an `APIError`, 422) — the credential covers several companies and none was named. `companies` lists them.
 - `stackin.CompanyNotInScopeError` (an `APIError`, 403) — the named company is not one the credential covers. `companies` lists the ones it does.
 - `stackin.InsufficientPermissionError` (an `APIError`, 403) — the credential reaches the company but lacks the permission; `description` reads `needs X, has Y, company=<id>`. None of the three is worth retrying as is.
+- `stackin.ClientAlreadyExistsError` (an `APIError`, 409) — `Clients.create()` or `update()` with a `tax_id` or `foreign_id` the company already has on another client. `client_id` names that client.
 - `stackin.ConnectionFailedError` — the API didn't respond (network/DNS/timeout).
-- `ValueError` — `issue()`'s `items` is empty, missing `ncm`/`cfop` on an item for NFE, an item `description` over 120 characters on NFE (the `xProd` limit; NFSE has no such limit), any string in an NFE request with a character the NF-e cannot carry (outside ISO-8859-1, latin1: an emoji, CJK, Cyrillic…; the error names the field — typographic quotes, dashes, ellipsis, bullet, `€` and `™` are not refused, the API converts them and folds tabs and line breaks into a space), a missing/incomplete `recipient_address` on NFE, or a missing/incomplete `recipient_address` (every field except `city_code`) on NFSE when any item has `tax_retained=True` (the ISSQN retained by the tomador).
+- `ValueError` — `issue()` without `client_name` or `tax_id` and no `client_id` (`tax_id` may be left out for an NF-e to a buyer abroad), `items` is empty, missing `ncm`/`cfop` on an item for NFE, an item `description` over 120 characters on NFE (the `xProd` limit; NFSE has no such limit), any string in an NFE request with a character the NF-e cannot carry (outside ISO-8859-1, latin1: an emoji, CJK, Cyrillic…; the error names the field — typographic quotes, dashes, ellipsis, bullet, `€` and `™` are not refused, the API converts them and folds tabs and line breaks into a space), a missing/incomplete `recipient_address` on NFE, or a missing/incomplete `recipient_address` (every field except `city_code`) on NFSE when any item has `tax_retained=True` (the ISSQN retained by the tomador).
 - `ValueError` — `correct()` with a key that is not an NF-e access key (44 characters): a correction letter exists only on NF-e; an NFS-e is cancelled and reissued instead. An NF-e key sent with `DocumentType.NFSE`, or one the API does not hold, is an `APIError` 409, not a `ValueError`.
 - `pydantic.ValidationError` (a `ValueError`) — a model built with a value the NF-e 4.00 XSD refuses: an `ncm` that is not 8 digits (or `00` for a service line), a `barcode` that is not `SEM GTIN` or an 8/12/13/14-digit GTIN with a valid GS1 check digit, a `recopi_number` that is not 20 digits with valid check digits, or an `Address` `street`/`neighborhood` under 2 characters once trimmed.
 
