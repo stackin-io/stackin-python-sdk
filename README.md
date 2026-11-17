@@ -392,9 +392,36 @@ Three things worth knowing before you loop:
 
 `Taxpayer` has one method and keeps one: the registry holds the names and addresses of real people, so there is no search over it, by design.
 
+## Several companies
+
+An API key belongs to one company and needs none of this. An OAuth credential may
+cover several, each with its own permissions; name the one a request acts on with
+`company` — its UUID or its CNPJ, punctuation or not. It goes out as the
+`X-Stackin-Company` header. Left unset, nothing is sent and requests are exactly
+what they were before.
+
+```python
+from stackin import Invoice
+
+client = Invoice(api_key="...", company="11.222.333/0001-81")  # every request
+client.history(company="6f1c2a9e-...")                         # this call only
+
+client.companies()
+# {"environment": "production",
+#  "companies": [{"company_id": "...", "name": "...", "tax_id": "...",
+#                 "permissions": ["invoice:read", ...]}]}
+```
+
+`companies()` lists what the credential covers and what it may do in each.
+`FiscalReference` and `Taxpayer` take `company` too and send it on every lookup;
+the API ignores it there.
+
 ## Errors
 
 - `stackin.APIError` — the API responded with a non-2xx status (`status_code`, `detail`) — a 401 here means `api_key` is missing, wrong, or was rotated.
+- `stackin.CompanyRequiredError` (an `APIError`, 422) — the credential covers several companies and none was named. `companies` lists them.
+- `stackin.CompanyNotInScopeError` (an `APIError`, 403) — the named company is not one the credential covers. `companies` lists the ones it does.
+- `stackin.InsufficientPermissionError` (an `APIError`, 403) — the credential reaches the company but lacks the permission; `description` reads `needs X, has Y, company=<id>`. None of the three is worth retrying as is.
 - `stackin.ConnectionFailedError` — the API didn't respond (network/DNS/timeout).
 - `ValueError` — `issue()`'s `items` is empty, missing `ncm`/`cfop` on an item for NFE, an item `description` over 120 characters on NFE (the `xProd` limit; NFSE has no such limit), any string in an NFE request with a character the NF-e cannot carry (outside ISO-8859-1, latin1: an emoji, CJK, Cyrillic…; the error names the field — typographic quotes, dashes, ellipsis, bullet, `€` and `™` are not refused, the API converts them and folds tabs and line breaks into a space), a missing/incomplete `recipient_address` on NFE, or a missing/incomplete `recipient_address` (every field except `city_code`) on NFSE when any item has `tax_retained=True` (the ISSQN retained by the tomador).
 - `ValueError` — `correct()` with a key that is not an NF-e access key (44 characters): a correction letter exists only on NF-e; an NFS-e is cancelled and reissued instead. An NF-e key sent with `DocumentType.NFSE`, or one the API does not hold, is an `APIError` 409, not a `ValueError`.
