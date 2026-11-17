@@ -14,7 +14,7 @@ import requests
 from stackin.br.export import Export
 from stackin.br.product import Product
 from stackin.core.address import Address
-from stackin.core.exceptions import APIError, ConnectionFailedError
+from stackin.core.exceptions import ConnectionFailedError, _api_error
 from stackin.core.types import (
     Direction,
     DocumentType,
@@ -24,6 +24,8 @@ from stackin.core.types import (
 )
 
 DEFAULT_BASE_URL = "https://sdk.stackin.io"
+
+COMPANY_HEADER = "X-Stackin-Company"
 
 _ENVIRONMENT_URLS = {
     Environment.LOCAL: "http://localhost:8000",
@@ -216,18 +218,29 @@ class _Client:
         environment: Environment | str | None = None,
         api_key: str | None = None,
         timeout: int = 30,
+        company: str | None = None,
     ) -> None:
+        """`company` is the UUID or CNPJ every request names in the
+        X-Stackin-Company header, for a credential that covers several
+        companies. Left unset, no header is sent."""
         resolved_url = _resolve_base_url(base_url, environment)
         self.base_url = resolved_url.rstrip("/")
         self.api_key = api_key or os.environ.get("STACKIN_API_KEY")
         self.timeout = timeout
+        self.company = company
 
-    def _headers(self, idempotency_key: str | None = None) -> dict:
+    def _headers(
+        self,
+        idempotency_key: str | None = None,
+        company: str | None = None,
+    ) -> dict:
         headers = {}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         if idempotency_key:
             headers["Idempotency-Key"] = idempotency_key
+        if selected := company or self.company:
+            headers[COMPANY_HEADER] = selected
         return headers
 
     def _request(
@@ -238,6 +251,7 @@ class _Client:
         json: dict | None = None,
         params: dict | None = None,
         idempotency_key: str | None = None,
+        company: str | None = None,
     ) -> Any:
         response = self._send(
             method,
@@ -245,6 +259,7 @@ class _Client:
             json=json,
             params=params,
             idempotency_key=idempotency_key,
+            company=company,
         )
         try:
             body = response.json() if response.content else {}
@@ -262,6 +277,7 @@ class _Client:
         json: dict | None = None,
         params: dict | None = None,
         idempotency_key: str | None = None,
+        company: str | None = None,
     ) -> requests.Response:
         url = f"{self.base_url}/api/v1{path}"
 
@@ -271,7 +287,7 @@ class _Client:
                 url,
                 json=json,
                 params=params,
-                headers=self._headers(idempotency_key),
+                headers=self._headers(idempotency_key, company),
                 timeout=self.timeout,
             )
         except requests.RequestException as error:
@@ -282,16 +298,22 @@ class _Client:
                 body = response.json() if response.content else {}
             except ValueError:
                 body = {}
-            raise APIError(
-                status_code=response.status_code,
-                detail=body.get("detail", response.text),
+            detail = (
+                body.get("detail", response.text)
+                if isinstance(body, dict)
+                else response.text
             )
+            raise _api_error(response.status_code, detail)
 
         return response
 
 
 class Invoice(_Client):
-    """Client for issuing, consulting, and cancelling fiscal documents."""
+    """Client for issuing, consulting, and cancelling fiscal documents.
+
+    Every method but companies() also takes `company`, which names the
+    company for that one call over the client's own.
+    """
 
     def issue(
         self,
@@ -312,6 +334,7 @@ class Invoice(_Client):
         referenced_keys: list[str] | None = None,
         foreign_id: str | None = None,
         export: Export | None = None,
+        company: str | None = None,
     ) -> dict:
         """Issues a fiscal document.
 
@@ -394,6 +417,7 @@ class Invoice(_Client):
                 "/invoices",
                 json=payload,
                 idempotency_key=idempotency_key,
+                company=company,
             ),
         )
 
@@ -402,12 +426,19 @@ class Invoice(_Client):
         access_key: str,
         *,
         document_type: DocumentType,
+        company: str | None = None,
     ) -> dict:
         """Consults a fiscal document by its access key."""
         params = {"document_type": document_type.value}
 
         return cast(
-            dict, self._request("GET", f"/invoices/{access_key}", params=params)
+            dict,
+            self._request(
+                "GET",
+                f"/invoices/{access_key}",
+                params=params,
+                company=company,
+            ),
         )
 
     def cancel(
@@ -417,6 +448,7 @@ class Invoice(_Client):
         document_type: DocumentType,
         reason: str,
         idempotency_key: str | None = None,
+        company: str | None = None,
     ) -> dict:
         """Cancels a fiscal document by its access key.
 
@@ -437,6 +469,7 @@ class Invoice(_Client):
                 f"/invoices/{access_key}/cancel",
                 json=payload,
                 idempotency_key=idempotency_key,
+                company=company,
             ),
         )
 
@@ -447,6 +480,7 @@ class Invoice(_Client):
         number_start: int,
         number_end: int,
         reason: str,
+        company: str | None = None,
     ) -> dict:
         """Reports a reserved but never used NFE numbering range."""
         if not 15 <= len(reason) <= 255:
@@ -462,7 +496,13 @@ class Invoice(_Client):
         }
 
         return cast(
-            dict, self._request("POST", "/invoices/invalidations", json=payload)
+            dict,
+            self._request(
+                "POST",
+                "/invoices/invalidations",
+                json=payload,
+                company=company,
+            ),
         )
 
     def correct(
@@ -471,6 +511,7 @@ class Invoice(_Client):
         *,
         document_type: DocumentType,
         correction: str,
+        company: str | None = None,
     ) -> dict:
         """Files a correction letter (CC-e) against an issued NF-e.
 
@@ -496,10 +537,21 @@ class Invoice(_Client):
 
         return cast(
             dict,
-            self._request("POST", f"/invoices/{access_key}/correction", json=payload),
+            self._request(
+                "POST",
+                f"/invoices/{access_key}/correction",
+                json=payload,
+                company=company,
+            ),
         )
 
-    def reissue(self, invoice_id: str, *, idempotency_key: str | None = None) -> dict:
+    def reissue(
+        self,
+        invoice_id: str,
+        *,
+        idempotency_key: str | None = None,
+        company: str | None = None,
+    ) -> dict:
         """Retries a previous invoice submission by its local id."""
         return cast(
             dict,
@@ -507,6 +559,7 @@ class Invoice(_Client):
                 "POST",
                 f"/invoices/{invoice_id}/reissue",
                 idempotency_key=idempotency_key,
+                company=company,
             ),
         )
 
@@ -515,6 +568,7 @@ class Invoice(_Client):
         access_key: str,
         *,
         document_type: DocumentType,
+        company: str | None = None,
     ) -> bytes:
         """The authorizer's rendering of an authorized document.
 
@@ -525,7 +579,12 @@ class Invoice(_Client):
         unavailable, not that the invoice is wrong. NFS-e only.
         """
         params = {"document_type": document_type.value}
-        response = self._send("GET", f"/invoices/{access_key}/pdf", params=params)
+        response = self._send(
+            "GET",
+            f"/invoices/{access_key}/pdf",
+            params=params,
+            company=company,
+        )
         return response.content
 
     def received(
@@ -533,6 +592,7 @@ class Invoice(_Client):
         *,
         limit: int | None = None,
         offset: int | None = None,
+        company: str | None = None,
     ) -> dict:
         """Documents other companies issued against this one.
 
@@ -546,7 +606,10 @@ class Invoice(_Client):
         if offset is not None:
             params["offset"] = offset
 
-        return cast(dict, self._request("GET", "/received-invoices", params=params))
+        return cast(
+            dict,
+            self._request("GET", "/received-invoices", params=params, company=company),
+        )
 
     def history(
         self,
@@ -557,6 +620,7 @@ class Invoice(_Client):
         offset: int | None = None,
         sort_by: str | None = None,
         order_by: str | None = None,
+        company: str | None = None,
     ) -> dict:
         """This company's own issuance history, newest first.
 
@@ -577,15 +641,23 @@ class Invoice(_Client):
         if order_by is not None:
             params["order_by"] = order_by
 
-        return cast(dict, self._request("GET", "/invoices", params=params))
+        return cast(
+            dict,
+            self._request("GET", "/invoices", params=params, company=company),
+        )
 
-    def submissions(self, invoice_id: str) -> list:
+    def submissions(self, invoice_id: str, *, company: str | None = None) -> list:
         """Every attempt made for one invoice, and what came back.
 
         consult() gives the status; this gives the reason. Takes the
         invoice_id because a rejected document has no access key.
         """
-        return cast(list, self._request("GET", f"/invoices/{invoice_id}/submissions"))
+        return cast(
+            list,
+            self._request(
+                "GET", f"/invoices/{invoice_id}/submissions", company=company
+            ),
+        )
 
     def manifest(
         self,
@@ -593,6 +665,7 @@ class Invoice(_Client):
         *,
         manifestation: Manifestation,
         reason: str | None = None,
+        company: str | None = None,
     ) -> dict:
         """The recipient's formal answer to a received document.
 
@@ -620,5 +693,15 @@ class Invoice(_Client):
                 "POST",
                 f"/received-invoices/{access_key}/manifestation",
                 json=payload,
+                company=company,
             ),
         )
+
+    def companies(self) -> dict:
+        """The companies this credential covers, and what it may do in each.
+
+        Returns `{environment, companies: [{company_id, name, tax_id,
+        permissions}]}`. Either id of a listed company is what `company`
+        takes. An API key lists its one company with every permission.
+        """
+        return cast(dict, self._request("GET", "/me/companies"))

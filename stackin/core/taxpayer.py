@@ -27,8 +27,9 @@ class Taxpayer(_Client):
         api_key: str | None = None,
         timeout: int = 30,
         country: str = "BR",
+        company: str | None = None,
     ) -> None:
-        super().__init__(base_url, environment, api_key, timeout)
+        super().__init__(base_url, environment, api_key, timeout, company)
         self.country = country
 
     def get(self, tax_id: str, *, country: str | None = None) -> dict:
