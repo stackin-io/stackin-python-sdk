@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.18.0 — 2026-11-17
+
+### Features
+- **client:** headers sent on every request, never over the SDK's own
+
+### Tests
+- **client:** extra headers, precedence and lookup clients
+
 ## v0.17.0 — 2026-11-17
 
 ### Features
