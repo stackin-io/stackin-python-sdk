@@ -279,6 +279,52 @@ class TestIbsCbs(unittest.TestCase):
         """A municipality with no IBS rate is a real case, not an error."""
         self.assertEqual(IbsCbs(**self.group(rate_city=0)).rate_city, 0)
 
+    def test_the_reductions_travel_when_set(self):
+        product = Product(
+            description="Teclado",
+            unit_price=Decimal("120.00"),
+            ibs_cbs=IbsCbs(**self.group(cst="200", reduction_ibs=60, reduction_cbs=60)),
+        )
+
+        group = product.to_dict()["product"]["br"]["ibs_cbs"]
+
+        self.assertEqual(group["reduction_ibs"], 60)
+        self.assertEqual(group["reduction_cbs"], 60)
+
+    def test_the_reductions_are_absent_when_not_set(self):
+        product = Product(
+            description="Teclado",
+            unit_price=Decimal("120.00"),
+            ibs_cbs=IbsCbs(**self.group()),
+        )
+
+        group = product.to_dict()["product"]["br"]["ibs_cbs"]
+
+        self.assertEqual(
+            group,
+            {
+                "cst": "000",
+                "classification": "000001",
+                "rate_state": 0.1,
+                "rate_city": 0.0,
+                "rate_federal": 0.9,
+            },
+        )
+
+    def test_a_reduction_outside_0_to_100_is_refused(self):
+        for field in ("reduction_ibs", "reduction_cbs"):
+            for value in (-1, 100.01):
+                with (
+                    self.subTest(field=field, value=value),
+                    self.assertRaises(ValidationError),
+                ):
+                    IbsCbs(**self.group(**{field: value}))
+
+    def test_the_cst_rule_is_left_to_the_api(self):
+        group = IbsCbs(**self.group(cst="000", reduction_ibs=0))
+
+        self.assertEqual(group.reduction_ibs, 0)
+
 
 class TestNcm(unittest.TestCase):
     """The full 8 digits, or 00 for a service line; else SEFAZ 777."""

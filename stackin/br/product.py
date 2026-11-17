@@ -19,6 +19,25 @@ class IbsCbs(BaseModel):
     rate_state: float = Field(ge=0)
     rate_city: float = Field(ge=0)
     rate_federal: float = Field(ge=0)
+    reduction_ibs: float | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description=(
+            "pRedAliq of the IBS (state and municipality), percent: the "
+            "cClassTrib's pRedIBS in the official classification table. "
+            "Required for CST 011, 200 and 515, refused for any other."
+        ),
+    )
+    reduction_cbs: float | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description=(
+            "pRedAliq of the CBS, percent: the cClassTrib's pRedCBS. "
+            "Required for CST 011, 200 and 515, refused for any other."
+        ),
+    )
 
 
 class PresumedCredit(BaseModel):
