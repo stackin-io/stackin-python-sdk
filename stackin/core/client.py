@@ -326,7 +326,7 @@ class Invoice(_Client):
         self,
         *,
         document_type: DocumentType,
-        client_name: str,
+        client_name: str | None = None,
         tax_id: str | None = None,
         items: list[Product],
         recipient_address: Address | None = None,
@@ -342,6 +342,8 @@ class Invoice(_Client):
         foreign_id: str | None = None,
         export: Export | None = None,
         company: str | None = None,
+        client_id: str | None = None,
+        update_client: bool = False,
     ) -> dict:
         """Issues a fiscal document.
 
@@ -358,12 +360,24 @@ class Invoice(_Client):
         be timezone-aware. `purpose`, `direction` and `referenced_keys`
         are NF-e only. Each of these is left out of the body when unset;
         the fiscal rules on them are the API's, answered as an APIError.
+
+        `client_id` names a saved client (see Clients): its name,
+        tax_id, foreign_id and address fill whichever of client_name,
+        tax_id, foreign_id and recipient_address are left out, and the
+        ones passed win. Those four are then no longer required here;
+        the API checks the merged request. After a successful issuance
+        a new recipient is saved as a client; `update_client=True`
+        rewrites an existing one with this request's recipient data.
         """
         if not items:
             raise ValueError("items can't be empty")
 
+        from_client = client_id is not None
+        if client_name is None and not from_client:
+            raise ValueError("client_name is required unless client_id is given")
+
         abroad = document_type is DocumentType.NFE and _is_abroad(recipient_address)
-        if tax_id is None and not abroad:
+        if tax_id is None and not abroad and not from_client:
             raise ValueError(
                 "tax_id is required, except on an NF-e to a buyer abroad "
                 "(recipient_address.state EX)"
@@ -380,15 +394,18 @@ class Invoice(_Client):
                     raise ValueError(f"items[{index}].ncm is required for NFE")
                 if not item.cfop:
                     raise ValueError(f"items[{index}].cfop is required for NFE")
-            _validate_nfe_address(recipient_address)
+            if recipient_address is not None or not from_client:
+                _validate_nfe_address(recipient_address)
         retained = any(item.tax_retained for item in items)
         if document_type is DocumentType.NFSE and retained:
-            _validate_nfse_retained_address(recipient_address)
+            if recipient_address is not None or not from_client:
+                _validate_nfse_retained_address(recipient_address)
 
-        payload: dict[str, Any] = {
-            "document_type": document_type.value,
-            "client_name": client_name,
-        }
+        payload: dict[str, Any] = {"document_type": document_type.value}
+        if client_id is not None:
+            payload["client_id"] = client_id
+        if client_name is not None:
+            payload["client_name"] = client_name
         if tax_id is not None:
             payload["tax_id"] = tax_id
         payload["items"] = [item.to_dict() for item in items]
@@ -416,6 +433,8 @@ class Invoice(_Client):
             payload["referenced_keys"] = _referenced_keys_list(referenced_keys)
         if foreign_id is not None:
             payload["foreign_id"] = foreign_id
+        if update_client:
+            payload["update_client"] = True
 
         return cast(
             dict,

@@ -7,8 +7,10 @@ __description__ = (
 
 from .core.address import Address
 from .core.client import Invoice
+from .core.clients import Clients
 from .core.exceptions import (
     APIError,
+    ClientAlreadyExistsError,
     CompanyNotInScopeError,
     CompanyRequiredError,
     ConnectionFailedError,
@@ -21,6 +23,7 @@ from .core.types import Direction, DocumentType, Environment, Manifestation, Pur
 
 __all__ = [
     "Invoice",
+    "Clients",
     "FiscalReference",
     "Kind",
     "KINDS",
@@ -37,4 +40,5 @@ __all__ = [
     "CompanyRequiredError",
     "CompanyNotInScopeError",
     "InsufficientPermissionError",
+    "ClientAlreadyExistsError",
 ]

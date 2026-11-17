@@ -52,12 +52,24 @@ class InsufficientPermissionError(APIError):
         self.description: str = str(detail.get("error_description") or "")
 
 
+class ClientAlreadyExistsError(APIError):
+    """409: the company already has a client with this tax_id or foreign_id.
+
+    `client_id` names that client, to read or reactivate it instead of
+    searching for it.
+    """
+
+    def __init__(self, status_code: int, detail: Any) -> None:
+        super().__init__(status_code, detail)
+        self.client_id: str = str(detail.get("client_id") or "")
+
+
 class ConnectionFailedError(InvoiceError):
     """The API could not be reached at all (network/DNS/timeout)."""
 
 
 def _api_error(status_code: int, detail: Any) -> APIError:
-    """The typed APIError a company or permission refusal maps to."""
+    """The typed APIError a company, permission or client refusal maps to."""
     if isinstance(detail, dict):
         if status_code == 422 and detail.get("error") == "company_required":
             return CompanyRequiredError(status_code, detail)
@@ -65,4 +77,6 @@ def _api_error(status_code: int, detail: Any) -> APIError:
             return CompanyNotInScopeError(status_code, detail)
         if status_code == 403 and detail.get("code") == "INSUFFICIENT_PERMISSION":
             return InsufficientPermissionError(status_code, detail)
+        if status_code == 409 and detail.get("code") == "CLIENT_EXISTS":
+            return ClientAlreadyExistsError(status_code, detail)
     return APIError(status_code=status_code, detail=detail)
