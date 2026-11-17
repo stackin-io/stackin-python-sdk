@@ -225,6 +225,16 @@ from stackin.br import Fuel, Product
 Product(description="Gasolina C", ncm="27101259", cfop="5656", fuel=Fuel(anp_code="320102001", anp_description="GASOLINA C COMUM", consumer_state="SP"))
 ```
 
+### IBS/CBS (NF-e)
+
+`ibs_cbs` on a `Product` is the Reforma Tributária group: `cst` (3 digits), `classification` (the 6-digit cClassTrib), `rate_state`, `rate_city` and `rate_federal` (percent) are required; `base` defaults to the item amount. `reduction_ibs` and `reduction_cbs` (0 to 100) are the cClassTrib's pRedIBS and pRedCBS — the API requires them for CST 011, 200 and 515 and refuses them for any other, so the SDK checks only the range and leaves the CST rule to the API. Left out, they are not sent:
+
+```python
+from stackin.br import IbsCbs, Product
+
+Product(description="Arroz", ncm="10063021", cfop="5102", ibs_cbs=IbsCbs(cst="200", classification="200003", rate_state=0.1, rate_city=0.0, rate_federal=0.9, reduction_ibs=60, reduction_cbs=60))
+```
+
 ## Retrying safely
 
 Issuing is the one call you must not repeat blindly. If the response is lost — a
