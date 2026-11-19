@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.20.0 — 2026-11-18
+
+### Features
+- **invoice:** usage(), sync_received() and history filters (#42)
+- **errors:** typed 402, 429 and saved-client refusals (#42)
+
+### Docs
+- **invoice:** pdf for both documents, the SEFAZ hour wait and received pricing (#42)
+
+### Tests
+- **invoice:** usage, received sync and history filters (#42)
+- **errors:** payment required, rate limited and client refusals (#42)
+
 ## v0.19.0 — 2026-11-17
 
 ### Features
