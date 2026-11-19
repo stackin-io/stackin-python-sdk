@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 import requests
+from requests.structures import CaseInsensitiveDict
 
 from stackin import (
     Address,
@@ -15,12 +16,20 @@ from stackin.br import Product
 
 
 class FakeResponse:
-    def __init__(self, status_code=200, json_data=None, text="", content=b"x"):
+    def __init__(
+        self,
+        status_code=200,
+        json_data=None,
+        text="",
+        content=b"x",
+        headers=None,
+    ):
         self.status_code = status_code
         self.ok = 200 <= status_code < 300
         self._json_data = json_data
         self.text = text
         self.content = content
+        self.headers = CaseInsensitiveDict(headers or {})
 
     def json(self):
         if self._json_data is None:
