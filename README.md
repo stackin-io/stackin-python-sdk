@@ -18,7 +18,7 @@
 
 Python SDK for fiscal document issuance — a handful of business fields, nothing about certificates, XML, XSD, signing or SOAP. The API resolves all of that from the issuer's own configuration, identified by `api_key`.
 
-**One class, `Invoice`** — `issue()`/`consult()`/`cancel()`/`reissue()`/`correct()`/`invalidate()`/`pdf()`/`received()`/`manifest()`, nothing else to instantiate. Each line item is a `Product` (`stackin.br`) — `description` plus either `unit_price` or `amount` are universal, everything else (`ncm`/`cfop`/`cest`/tax groups...) is Brazil-specific and only required for NFE; NFSE ignores it.
+**One class, `Invoice`** — `issue()`/`consult()`/`cancel()`/`reissue()`/`correct()`/`invalidate()`/`pdf()`/`history()`/`submissions()`/`received()`/`sync_received()`/`manifest()`/`usage()`, nothing else to instantiate. Each line item is a `Product` (`stackin.br`) — `description` plus either `unit_price` or `amount` are universal, everything else (`ncm`/`cfop`/`cest`/tax groups...) is Brazil-specific and only required for NFE; NFSE ignores it.
 
 ## What a line item is worth
 
@@ -119,8 +119,8 @@ client.cancel(
 )
 client.reissue(invoice["id"])  # retries a rejected/failed submission
 
-# The authorizer's PDF, as raw bytes. NFS-e only; the XML stays the
-# legally valid document, and a 502 here means the authorizer is down.
+# The PDF, as raw bytes: the API draws the DANFE for an NF-e and the
+# DANFSe for an NFS-e itself. The XML stays the legally valid document.
 with open("nota.pdf", "wb") as file:
     file.write(client.pdf(access_key, document_type=DocumentType.NFSE))
 
@@ -342,13 +342,21 @@ round trip — and the authorizer checks again for what we can't see from here.
 Everything above serves the **issuer**. These two serve the **recipient**: what
 suppliers billed to this CNPJ, and the formal answer to it.
 
-Reading the list never calls the SEFAZ. The authorizer caps how many times a CNPJ
-may ask for its distribution per day, so collecting runs on a schedule on the API
-side and a page refresh cannot spend that allowance.
+Reading the list never calls the SEFAZ. Collecting runs on a schedule on the API
+side, every six hours, and `sync_received()` asks for what is new right away. After
+a read that finds nothing more, the SEFAZ makes the CNPJ wait an hour before the
+next one; a sync inside that wait raises `RateLimitedError` with `code`
+`DISTRIBUTION_COOLDOWN`, `retry_at` (when the wait ends) and `retry_after`
+(seconds), and is refused before it reaches the SEFAZ.
+
+The first 50 received documents a month are included in every plan; each one after
+that takes R$ 0,05 from the account credit. Some existing accounts are exempt,
+which `usage().received_free` tells.
 
 ```python
 from stackin import Manifestation
 
+result = client.sync_received()   # ReceivedSync: stored, pages, next_sync_at
 page = client.received(limit=20)
 for document in page["data"]:
     print(document["access_key"], document["issuer_name"], document["amount"])
@@ -370,6 +378,26 @@ Operação, `210220` Desconhecimento da Operação and `210240` Operação não
 Realizada. Only the last one takes a reason, and it requires one — both rules are
 checked locally, before the request goes out, because a round trip to be told a
 fixed rule is a round trip wasted.
+
+## History and usage
+
+`history()` lists what the company issued, newest first. `external_reference`
+keeps only the documents issued with that exact reference, and `fields="summary"`
+returns a lighter row per document (`items` and `fiscal_operation` left null;
+`consult()` one document for its lines).
+
+```python
+page = client.history(external_reference="order-1042", fields="summary")
+
+usage = client.usage()   # Usage, a typed model
+print(usage.plan_name, usage.used_invoices, "/", usage.included_invoices)
+print(usage.used_received, "/", usage.included_received, usage.received_free)
+print(usage.credit_balance)   # cents
+```
+
+`usage()` reads the paying account's plan, shared by every company it holds
+(`companies_on_account`). Amounts are in cents; `overage_price_cents` and
+`current_period_end` may be `None`. Fields the API adds later are ignored.
 
 ## Looking up a code, or who a CNPJ belongs to
 
@@ -481,6 +509,10 @@ the API ignores it there.
 - `stackin.CompanyNotInScopeError` (an `APIError`, 403) — the named company is not one the credential covers. `companies` lists the ones it does.
 - `stackin.InsufficientPermissionError` (an `APIError`, 403) — the credential reaches the company but lacks the permission; `description` reads `needs X, has Y, company=<id>`. None of the three is worth retrying as is.
 - `stackin.ClientAlreadyExistsError` (an `APIError`, 409) — `Clients.create()` or `update()` with a `tax_id` or `foreign_id` the company already has on another client. `client_id` names that client.
+- `stackin.ClientInactiveError` (an `APIError`, 422) — `issue()` with the `client_id` of a deactivated client. `client_id` names it; `Clients.reactivate()` brings it back.
+- `stackin.ClientNotFoundError` (an `APIError`, 404) — no client of this company has that `client_id`.
+- `stackin.PaymentRequiredError` (an `APIError`, 402) — the account has no allowance or credit left for the call; `detail` says what ran out.
+- `stackin.RateLimitedError` (an `APIError`, 429) — too many calls, or the SEFAZ's one-hour wait on received documents. `retry_after` is the `Retry-After` header in seconds, `code` names the limit (`DISTRIBUTION_COOLDOWN`) and `retry_at` the moment the wait ends; each is `None` when the response does not carry it.
 - `stackin.ConnectionFailedError` — the API didn't respond (network/DNS/timeout).
 - `ValueError` — `issue()` without `client_name` or `tax_id` and no `client_id` (`tax_id` may be left out for an NF-e to a buyer abroad), `items` is empty, missing `ncm`/`cfop` on an item for NFE, an item `description` over 120 characters on NFE (the `xProd` limit; NFSE has no such limit), any string in an NFE request with a character the NF-e cannot carry (outside ISO-8859-1, latin1: an emoji, CJK, Cyrillic…; the error names the field — typographic quotes, dashes, ellipsis, bullet, `€` and `™` are not refused, the API converts them and folds tabs and line breaks into a space), a missing/incomplete `recipient_address` on NFE, or a missing/incomplete `recipient_address` (every field except `city_code`) on NFSE when any item has `tax_retained=True` (the ISSQN retained by the tomador).
 - `ValueError` — `correct()` with a key that is not an NF-e access key (44 characters): a correction letter exists only on NF-e; an NFS-e is cancelled and reissued instead. An NF-e key sent with `DocumentType.NFSE`, or one the API does not hold, is an `APIError` 409, not a `ValueError`.
