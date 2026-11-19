@@ -11,11 +11,15 @@ from .core.clients import Clients
 from .core.exceptions import (
     APIError,
     ClientAlreadyExistsError,
+    ClientInactiveError,
+    ClientNotFoundError,
     CompanyNotInScopeError,
     CompanyRequiredError,
     ConnectionFailedError,
     InsufficientPermissionError,
     InvoiceError,
+    PaymentRequiredError,
+    RateLimitedError,
 )
 from .core.reference import KINDS, FiscalReference, Kind
 from .core.taxpayer import Taxpayer
@@ -41,4 +45,8 @@ __all__ = [
     "CompanyNotInScopeError",
     "InsufficientPermissionError",
     "ClientAlreadyExistsError",
+    "ClientInactiveError",
+    "ClientNotFoundError",
+    "PaymentRequiredError",
+    "RateLimitedError",
 ]

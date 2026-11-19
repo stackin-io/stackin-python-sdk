@@ -310,7 +310,12 @@ class _Client:
                 if isinstance(body, dict)
                 else response.text
             )
-            raise _api_error(response.status_code, detail)
+            raise _api_error(
+                response.status_code,
+                detail,
+                body,
+                response.headers,
+            )
 
         return response
 
