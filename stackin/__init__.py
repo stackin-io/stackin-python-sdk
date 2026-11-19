@@ -24,6 +24,7 @@ from .core.exceptions import (
 from .core.reference import KINDS, FiscalReference, Kind
 from .core.taxpayer import Taxpayer
 from .core.types import Direction, DocumentType, Environment, Manifestation, Purpose
+from .core.usage import ReceivedSync, Usage
 
 __all__ = [
     "Invoice",
@@ -38,6 +39,8 @@ __all__ = [
     "Purpose",
     "Direction",
     "Address",
+    "Usage",
+    "ReceivedSync",
     "InvoiceError",
     "APIError",
     "ConnectionFailedError",

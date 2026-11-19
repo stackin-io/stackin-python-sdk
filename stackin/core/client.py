@@ -7,7 +7,7 @@ import re
 from collections.abc import Sequence
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import requests
 
@@ -22,6 +22,7 @@ from stackin.core.types import (
     Manifestation,
     Purpose,
 )
+from stackin.core.usage import ReceivedSync, Usage
 
 DEFAULT_BASE_URL = "https://sdk.stackin.io"
 
@@ -642,6 +643,27 @@ class Invoice(_Client):
             self._request("GET", "/received-invoices", params=params, company=company),
         )
 
+    def sync_received(self, *, company: str | None = None) -> ReceivedSync:
+        """Asks the SEFAZ now for documents issued against the company.
+
+        Resumes where the last read stopped and stores what arrives; read
+        it with received(). Within the SEFAZ's one-hour wait after a read
+        that found nothing more, raises RateLimitedError with code
+        DISTRIBUTION_COOLDOWN, `retry_at` and `retry_after`.
+        """
+        result = self._request("POST", "/received-invoices/sync", company=company)
+        return ReceivedSync.model_validate(result)
+
+    def usage(self, *, company: str | None = None) -> Usage:
+        """The plan behind the company and how much of it is used.
+
+        The numbers are the paying account's, shared by every company it
+        holds.
+        """
+        return Usage.model_validate(
+            self._request("GET", "/company/usage", company=company)
+        )
+
     def history(
         self,
         *,
@@ -651,18 +673,29 @@ class Invoice(_Client):
         offset: int | None = None,
         sort_by: str | None = None,
         order_by: str | None = None,
+        external_reference: str | None = None,
+        fields: Literal["full", "summary"] | None = None,
         company: str | None = None,
     ) -> dict:
         """This company's own issuance history, newest first.
 
         The counterpart of received(): that one lists what was issued
         against the company, this one what the company issued.
+
+        `external_reference` keeps only the documents issued with that
+        exact reference. `fields="summary"` returns a lighter row per
+        document, with `items` and `fiscal_operation` left null; consult
+        one document for its lines.
         """
         params: dict[str, object] = {}
         if document_type is not None:
             params["document_type"] = document_type.value
         if status is not None:
             params["status"] = status
+        if external_reference is not None:
+            params["external_reference"] = external_reference
+        if fields is not None:
+            params["fields"] = fields
         if limit is not None:
             params["limit"] = limit
         if offset is not None:
