@@ -3,16 +3,19 @@
 import unittest
 from unittest.mock import patch
 
+from requests.structures import CaseInsensitiveDict
+
 from stackin import KINDS, FiscalReference, Kind
 from stackin.core.exceptions import APIError
 
 
 class FakeResponse:
-    def __init__(self, status_code=200, payload=None):
+    def __init__(self, status_code=200, payload=None, headers=None):
         self.status_code = status_code
         self._payload = payload if payload is not None else {}
         self.content = b"{}"
         self.text = ""
+        self.headers = CaseInsensitiveDict(headers or {})
 
     @property
     def ok(self):
