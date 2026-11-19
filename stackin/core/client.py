@@ -602,13 +602,12 @@ class Invoice(_Client):
         document_type: DocumentType,
         company: str | None = None,
     ) -> bytes:
-        """The authorizer's rendering of an authorized document.
+        """The printable rendering of an authorized document, as a PDF.
 
-        Returns raw bytes — the only method that does not return a
-        parsed object. The XML is the legally valid document; this is a
-        convenience, and the authorizer's endpoint for it is unstable,
-        so an APIError with status 502 means the authorizer is
-        unavailable, not that the invoice is wrong. NFS-e only.
+        The API draws it itself from the authorized XML: the DANFE for
+        an NF-e, the DANFSe for an NFS-e. Returns raw bytes, the only
+        method that does not return a parsed object. The XML stays the
+        legally valid document; the PDF is its representation.
         """
         params = {"document_type": document_type.value}
         response = self._send(
@@ -629,8 +628,13 @@ class Invoice(_Client):
         """Documents other companies issued against this one.
 
         Reads what the API already collected; it does not call the
-        authorizer. Collecting runs on a schedule there, because the
-        SEFAZ caps how many times a CNPJ may ask per day.
+        SEFAZ. Collecting runs on a schedule there, every six hours, and
+        sync_received() asks for what is new right away. After a read
+        that finds nothing more, the SEFAZ makes the CNPJ wait an hour.
+
+        The first 50 received a month are included in every plan; each
+        one after that takes R$ 0,05 from the account credit, unless
+        usage().received_free exempts the account.
         """
         params = {}
         if limit is not None:
