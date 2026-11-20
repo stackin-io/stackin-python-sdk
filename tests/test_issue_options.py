@@ -89,10 +89,19 @@ class TestUnsetFieldsLeaveTheBodyAlone(IssueCase):
             "referenced_keys",
             "foreign_id",
             "export",
+            "contingency",
         ):
             with self.subTest(key=key):
                 self.assertNotIn(key, body)
         self.assertNotIn("fuel", body["items"][0]["product"].get("br", {}))
+
+
+class TestContingency(IssueCase):
+    def test_true_is_sent(self):
+        self.assertIs(self.body(contingency=True)["contingency"], True)
+
+    def test_false_is_left_out(self):
+        self.assertNotIn("contingency", self.body(contingency=False))
 
 
 class TestDiscount(IssueCase):
