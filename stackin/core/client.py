@@ -774,7 +774,9 @@ class Invoice(_Client):
         return cast(
             list,
             self._request(
-                "GET", f"/invoices/{invoice_id}/submissions", company=company
+                "GET",
+                f"/invoices/{_invoice_segment(invoice_id)}/submissions",
+                company=company,
             ),
         )
 
@@ -790,7 +792,11 @@ class Invoice(_Client):
         """
         return cast(
             dict,
-            self._request("GET", f"/invoices/{invoice_id}/rejection", company=company),
+            self._request(
+                "GET",
+                f"/invoices/{_invoice_segment(invoice_id)}/rejection",
+                company=company,
+            ),
         )
 
     def classify(
@@ -906,3 +912,10 @@ class Invoice(_Client):
         takes. An API key lists its one company with every permission.
         """
         return cast(dict, self._request("GET", "/me/companies"))
+
+
+def _invoice_segment(invoice_id: str) -> str:
+    """The invoice id as one escaped path segment (see reference._segment)."""
+    from stackin.core.reference import _segment
+
+    return _segment(invoice_id)
