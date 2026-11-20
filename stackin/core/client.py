@@ -186,6 +186,25 @@ def _referenced_keys_list(referenced_keys: Sequence[str]) -> list[str]:
     return list(referenced_keys)
 
 
+def _page_params(
+    limit: int | None,
+    offset: int | None,
+    sort_by: str | None,
+    order_by: str | None,
+) -> dict[str, Any]:
+    """The API's pagination query, leaving out what was not passed."""
+    params: dict[str, Any] = {}
+    if limit is not None:
+        params["limit"] = limit
+    if offset is not None:
+        params["offset"] = offset
+    if sort_by is not None:
+        params["sort_by"] = sort_by
+    if order_by is not None:
+        params["order_by"] = order_by
+    return params
+
+
 def _validate_nfse_retained_address(address: Address | None) -> None:
     """Retained ISSQN needs the tomador's address — the authorizer refuses
     the document without it (E0237). Every field but city_code."""
@@ -350,6 +369,7 @@ class Invoice(_Client):
         company: str | None = None,
         client_id: str | None = None,
         update_client: bool = False,
+        contingency: bool = False,
     ) -> dict:
         """Issues a fiscal document.
 
@@ -374,6 +394,10 @@ class Invoice(_Client):
         the API checks the merged request. After a successful issuance
         a new recipient is saved as a client; `update_client=True`
         rewrites an existing one with this request's recipient data.
+
+        `contingency=True` sends an NF-e through the UF's contingency
+        authorizer (SVC-AN/SVC-RS, tpEmis 6/7) for when its own is down.
+        Left False, it is not sent.
         """
         if not items:
             raise ValueError("items can't be empty")
@@ -441,6 +465,8 @@ class Invoice(_Client):
             payload["foreign_id"] = foreign_id
         if update_client:
             payload["update_client"] = True
+        if contingency:
+            payload["contingency"] = True
 
         return cast(
             dict,
@@ -533,6 +559,31 @@ class Invoice(_Client):
                 "POST",
                 "/invoices/invalidations",
                 json=payload,
+                company=company,
+            ),
+        )
+
+    def invalidations(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
+        sort_by: str | None = None,
+        order_by: str | None = None,
+        company: str | None = None,
+    ) -> dict:
+        """The numbering ranges this company already invalidated, a page.
+
+        Each row carries the range, the reason, the SEFAZ `status` and its
+        `protocol`. Read it before invalidate() to avoid reporting the
+        same range twice.
+        """
+        return cast(
+            dict,
+            self._request(
+                "GET",
+                "/invoices/invalidations",
+                params=_page_params(limit, offset, sort_by, order_by),
                 company=company,
             ),
         )
@@ -723,9 +774,97 @@ class Invoice(_Client):
         return cast(
             list,
             self._request(
-                "GET", f"/invoices/{invoice_id}/submissions", company=company
+                "GET",
+                f"/invoices/{_invoice_segment(invoice_id)}/submissions",
+                company=company,
             ),
         )
+
+    def rejection(self, invoice_id: str, *, company: str | None = None) -> dict:
+        """Why a rejected document was refused, and what to change.
+
+        submissions() has the authorizer's own answer; this reads it for
+        someone who does not speak SEFAZ: `code`, `message`,
+        `explanation`, `steps`, the `field` to fix and, when there is
+        one, a `suggested` value. Takes the invoice_id, like
+        submissions(). A document that is not rejected is an APIError
+        409.
+        """
+        return cast(
+            dict,
+            self._request(
+                "GET",
+                f"/invoices/{_invoice_segment(invoice_id)}/rejection",
+                company=company,
+            ),
+        )
+
+    def classify(
+        self,
+        description: str,
+        *,
+        document_type: DocumentType,
+        recipient_state: str | None = None,
+        answers: dict[str, Any] | None = None,
+        company: str | None = None,
+    ) -> dict:
+        """A suggested fiscal classification for one item's description.
+
+        A suggestion, never a decision: `primary_candidate` and
+        `alternative_candidates` carry the NCM, CFOP, CST/CSOSN, CEST or
+        service code, each read from the published tables, with a
+        `confidence`, and `missing_information` lists what would settle
+        it (pass those back in `answers`). Someone confirms it before it
+        goes on an item; the codes decide the tax owed.
+        """
+        if not 3 <= len(description) <= 500:
+            raise ValueError("description must be 3 to 500 characters")
+        if recipient_state is not None and len(recipient_state) != 2:
+            raise ValueError("recipient_state must be a two-letter UF")
+
+        payload: dict[str, Any] = {
+            "description": description,
+            "document_type": DocumentType(document_type).value,
+        }
+        if recipient_state is not None:
+            payload["recipient_state"] = recipient_state.upper()
+        if answers:
+            payload["answers"] = dict(answers)
+
+        return cast(
+            dict,
+            self._request("POST", "/ai/classify", json=payload, company=company),
+        )
+
+    def stats(self, *, days: int | None = None, company: str | None = None) -> dict:
+        """Counts of this company's documents, and the last `days` of them.
+
+        `total`, `by_document_type` and `by_status` cover every document;
+        `current_period`/`previous_period` compare the last `days` (1 to
+        365, the API's default 30) with the ones before, and
+        `daily_series` has one row per day.
+        """
+        params: dict[str, Any] = {}
+        if days is not None:
+            if not 1 <= days <= 365:
+                raise ValueError("days must be 1 to 365")
+            params["days"] = days
+
+        return cast(
+            dict,
+            self._request("GET", "/invoices/stats", params=params, company=company),
+        )
+
+    def readiness(self, *, company: str | None = None) -> dict:
+        """Whether the company can issue right now, and if not, why.
+
+        `ready` is False with `missing` naming the cause: certificate,
+        certificate_expired, certificate_unreadable or address. Also
+        `certificate_expires_at`, `tax_regime` (CRT), `state` and the
+        `default_series` per document type. Ask before a first document
+        instead of failing it.
+        """
+        return cast(dict, self._request("GET", "/company", company=company))
 
     def manifest(
         self,
@@ -773,3 +912,10 @@ class Invoice(_Client):
         takes. An API key lists its one company with every permission.
         """
         return cast(dict, self._request("GET", "/me/companies"))
+
+
+def _invoice_segment(invoice_id: str) -> str:
+    """The invoice id as one escaped path segment (see reference._segment)."""
+    from stackin.core.reference import _segment
+
+    return _segment(invoice_id)

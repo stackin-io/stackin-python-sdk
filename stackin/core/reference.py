@@ -172,3 +172,32 @@ class FiscalReference(_Client):
             limit=limit,
             offset=offset,
         )
+
+    def cities(
+        self,
+        name: str,
+        *,
+        state: str | None = None,
+        country: str | None = None,
+    ) -> list[dict]:
+        """Municipalities whose name starts with `name`, with their code.
+
+        Each row is `{country, code, name, state}`; for Brazil `code` is
+        the 7-digit IBGE code an address's `city_code` takes. Issuing
+        resolves it from city and state by itself, so this is for the
+        name that matches more than one. `state` narrows to one UF; the
+        API answers at most 20 rows.
+        """
+        if not 2 <= len(name) <= 100:
+            raise ValueError("name must be 2 to 100 characters")
+        if state is not None and len(state) != 2:
+            raise ValueError("state must be a two-letter code")
+
+        params: dict[str, Any] = {
+            "name": name,
+            "country": country or self.country,
+        }
+        if state is not None:
+            params["state"] = state.upper()
+
+        return cast(list[dict], self._request("GET", "/cities", params=params))

@@ -197,6 +197,12 @@ client.issue(..., purpose=Purpose.RETURN, direction=Direction.IN, referenced_key
 client.issue(..., purpose=Purpose.RETURN, referenced_keys=["35261112345678000195550010000000011000000014"])
 ```
 
+`contingency` — NF-e only: `True` sends the document through the UF's contingency authorizer (SVC-AN or SVC-RS, `tpEmis` 6/7) for when its own is down. Left `False`, nothing is sent:
+
+```python
+client.issue(..., contingency=True)
+```
+
 ### A buyer abroad (NF-e)
 
 A `recipient_address` with `state="EX"` is a buyer outside Brazil. There `tax_id` is left out, `zip_code` and `city_code` may be left out, and `country_code` (the BACEN code, not Brazil's 1058) is required, with `country_name` beside it. The SDK does not check the BACEN code's check digit: the official table has countries whose digit does not close.
@@ -337,6 +343,51 @@ round trip — and the authorizer checks again for what we can't see from here.
 
 **NF-e only**, and it takes no access key: there is no document to point at.
 
+Ranges already reported are listed, a page at a time, with the SEFAZ `status` and
+`protocol` of each — read it before reporting the same range twice:
+
+```python
+page = invoice.invalidations(limit=20)
+```
+
+## Before the first document, and after a refusal
+
+```python
+ready = client.readiness()        # GET /company
+if not ready["ready"]:
+    print(ready["missing"])       # certificate, certificate_expired, certificate_unreadable, address
+
+why = client.rejection(invoice_id)          # a rejected document, by its local id
+print(why["code"], why["explanation"], why["steps"], why["suggested"])
+
+stats = client.stats(days=7)      # totals, by type and status, this week against the last
+```
+
+`readiness()` says whether the company can issue right now and, when it cannot,
+what is missing, plus the certificate's expiry, the tax regime (CRT) and the
+default série per document type. `rejection()` reads the authorizer's answer
+(`submissions()` has it raw) in plain words, with the field to fix and, when there
+is one, a suggested value; a document that is not rejected is an `APIError` 409.
+`stats()` takes `days` from 1 to 365 (the API's default 30), checked locally.
+
+## Suggesting a classification
+
+```python
+suggestion = client.classify(
+    "Cerveja artesanal IPA 500ml",
+    document_type=DocumentType.NFE,
+    recipient_state="SP",
+    answers={"purpose": "resale"},     # optional, from missing_information
+)
+best = suggestion["primary_candidate"]   # ncm, cfop, cst/csosn, cest, confidence
+```
+
+**A suggestion, never a decision.** Every code in a candidate is read from the
+published tables, but the NCM and CFOP decide the tax owed: show it, have someone
+confirm it, and only then put it on an item. `missing_information` lists what
+would settle it; answer through `answers` and ask again. `description` is 3 to
+500 characters, checked locally.
+
 ## Documents issued against you
 
 Everything above serves the **issuer**. These two serve the **recipient**: what
@@ -422,6 +473,12 @@ Taxpayer(api_key="...").get("00000000000191")
 
 `metadata` is passed through as the API sends it and differs per kind: `utrib` on an NCM, `ncm_code` on a CEST, `tax_type` on a CST, `None` on an ISS service.
 
+`cities(name, state=None)` lists the municipalities whose name starts with `name`, at most 20, each with its IBGE `code` — issuing resolves `city_code` by itself, so this is for a name that matches more than one:
+
+```python
+ref.cities("santa rita", state="SP")   # [{"country": "BR", "code": "...", "name": "...", "state": "SP"}]
+```
+
 Three things worth knowing before you loop:
 
 - **These share the invoice read allowance** — 600 calls a minute per key, the same bucket `consult()`, `history()`, `received()` and `pdf()` draw from. One `search()` page beats N `get()` calls.
@@ -478,6 +535,34 @@ Invoice(api_key="...").issue(
 - Reading needs `invoice:read`; creating, editing and deactivating need
   `invoice:issue`. `company` works here as everywhere else.
 
+## Webhooks
+
+`Webhooks` registers where the company's events are delivered: `invoice.authorized`,
+`invoice.rejected`, `invoice.cancelled` and `invoice.corrected` (`stackin.EVENTS`).
+An endpoint receives the events of the credential's own environment only.
+
+```python
+import os
+
+from stackin import Webhooks
+
+hooks = Webhooks(api_key="...")
+
+endpoint = hooks.create(
+    url="https://shop.example/stackin",
+    secret=os.environ["STACKIN_WEBHOOK_SECRET"],   # 16 to 255 characters
+    events=["invoice.authorized", "invoice.rejected"],   # left out: every event
+)
+hooks.list()                          # a plain list; secrets are never returned
+hooks.deliveries(limit=20)            # every attempt: status, attempts, last_error
+hooks.delete(endpoint["id"])          # stops delivery, keeps the history
+```
+
+The secret signs every delivery and is not returned again, so keep it. An `https://`
+URL, the secret's length and the event names are checked locally; the API also
+refuses a URL that points at a private network. On an OAuth credential every call
+needs `webhook:manage`.
+
 ## Several companies
 
 An API key belongs to one company and needs none of this. An OAuth credential may
@@ -516,6 +601,7 @@ the API ignores it there.
 - `stackin.ConnectionFailedError` — the API didn't respond (network/DNS/timeout).
 - `ValueError` — `issue()` without `client_name` or `tax_id` and no `client_id` (`tax_id` may be left out for an NF-e to a buyer abroad), `items` is empty, missing `ncm`/`cfop` on an item for NFE, an item `description` over 120 characters on NFE (the `xProd` limit; NFSE has no such limit), any string in an NFE request with a character the NF-e cannot carry (outside ISO-8859-1, latin1: an emoji, CJK, Cyrillic…; the error names the field — typographic quotes, dashes, ellipsis, bullet, `€` and `™` are not refused, the API converts them and folds tabs and line breaks into a space), a missing/incomplete `recipient_address` on NFE, or a missing/incomplete `recipient_address` (every field except `city_code`) on NFSE when any item has `tax_retained=True` (the ISSQN retained by the tomador).
 - `ValueError` — `correct()` with a key that is not an NF-e access key (44 characters): a correction letter exists only on NF-e; an NFS-e is cancelled and reissued instead. An NF-e key sent with `DocumentType.NFSE`, or one the API does not hold, is an `APIError` 409, not a `ValueError`.
+- `ValueError` — `stats()` with `days` outside 1–365, `classify()` with a `description` outside 3–500 characters or a `recipient_state` that is not two letters, `FiscalReference.cities()` with a `name` outside 2–100 characters, and `Webhooks.create()` with a URL that is not `https://`, a secret outside 16–255 characters or an event name not in `EVENTS`.
 - `pydantic.ValidationError` (a `ValueError`) — a model built with a value the NF-e 4.00 XSD refuses: an `ncm` that is not 8 digits (or `00` for a service line), a `barcode` that is not `SEM GTIN` or an 8/12/13/14-digit GTIN with a valid GS1 check digit, a `recopi_number` that is not 20 digits with valid check digits, or an `Address` `street`/`neighborhood` under 2 characters once trimmed.
 
 Building the full fiscal document (issuer data, service code, tax groups, schema-accurate XML) is the API's job — configured once per company, not passed on every call.
