@@ -1,6 +1,7 @@
 """The webhook endpoint registry and its delivery log."""
 
 import unittest
+from typing import Any
 from unittest.mock import patch
 
 from stackin import EVENTS, APIError, Webhooks
@@ -62,7 +63,7 @@ class CreateTest(unittest.TestCase):
         )
 
     def test_refusals_before_the_call(self):
-        cases = {
+        cases: dict[str, dict[str, Any]] = {
             "url": dict(url="http://shop.test/hook", secret=SECRET),
             "secret": dict(url="https://shop.test/hook", secret="short"),
             "unknown events": dict(
