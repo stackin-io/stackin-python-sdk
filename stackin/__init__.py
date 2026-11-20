@@ -1,6 +1,6 @@
 """Invoice __init__ module."""
 
-__version__ = "0.20.0"
+__version__ = "0.21.0"
 __description__ = (
     "Python SDK for issuing, consulting and cancelling electronic invoices."
 )
@@ -25,10 +25,13 @@ from .core.reference import KINDS, FiscalReference, Kind
 from .core.taxpayer import Taxpayer
 from .core.types import Direction, DocumentType, Environment, Manifestation, Purpose
 from .core.usage import ReceivedSync, Usage
+from .core.webhooks import EVENTS, Webhooks
 
 __all__ = [
     "Invoice",
     "Clients",
+    "Webhooks",
+    "EVENTS",
     "FiscalReference",
     "Kind",
     "KINDS",
