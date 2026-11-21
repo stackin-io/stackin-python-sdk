@@ -355,7 +355,9 @@ page = invoice.invalidations(limit=20)
 ```python
 ready = client.readiness()        # GET /company
 if not ready["ready"]:
-    print(ready["missing"])       # certificate, certificate_expired, certificate_unreadable, address
+    print(ready["missing"])       # certificate, certificate_expired, certificate_unreadable, address, state_registration, plan
+    print(ready["by_document_type"]["nfse"]["missing"])   # [{"code": "address", "fields": ["zip_code"]}]
+    print(ready["fix_url"])       # the dashboard screen for the first blocker
 
 why = client.rejection(invoice_id)          # a rejected document, by its local id
 print(why["code"], why["explanation"], why["steps"], why["suggested"])
@@ -364,11 +366,46 @@ stats = client.stats(days=7)      # totals, by type and status, this week agains
 ```
 
 `readiness()` says whether the company can issue right now and, when it cannot,
-what is missing, plus the certificate's expiry, the tax regime (CRT) and the
-default série per document type. `rejection()` reads the authorizer's answer
+what is missing — per document type in `by_document_type`, with the fields at
+fault and the defaults it would declare, and `fix_url` pointing at the dashboard
+screen that fixes the first blocker — plus the certificate's expiry, the tax
+regime (CRT), the default série per document type and `suggested_fiscal_fields`,
+what the CNPJ registry suggests (never applied). `rejection()` reads the authorizer's answer
 (`submissions()` has it raw) in plain words, with the field to fix and, when there
 is one, a suggested value; a document that is not rejected is an `APIError` 409.
 `stats()` takes `days` from 1 to 365 (the API's default 30), checked locally.
+
+## Fix the issuer: `Company.update`
+
+```python
+from stackin import Company
+
+company = Company(api_key="...")
+fixed = company.update(                     # PATCH /company
+    address={
+        "street": "Av. Paulista",
+        "number": "1000",
+        "neighborhood": "Bela Vista",
+        "municipality_code": "3550308",     # IBGE; the name is filled in from it
+        "zip_code": "01310-100",            # the mask is stripped
+    },
+    fiscal_fields={"tax_regime": "1", "simples_nacional": "3"},   # the owner's alone
+)
+print(fixed["ready"], fixed["missing"], fixed["address"], fixed["fiscal_fields"])
+```
+
+It fixes what `readiness()` reports missing and answers with the same fields,
+plus `address` and `fiscal_fields` as stored. Only what is given is sent. The
+address takes `street`, `number`, `neighborhood`, `municipality_code`,
+`municipality_name` and `zip_code` — no `complement`, and the state changes only
+in the dashboard; any other key is a `ValueError` before the call, as are a
+`municipality_code` that is not 7 digits, a `zip_code` that is not 8 and a
+`tax_regime` (1–4), `simples_nacional` or `simples_apuracao` (1–3) outside its
+codes. `fiscal_fields` (`tax_regime`, `simples_nacional`, `simples_apuracao`,
+`state_registration`, `service_code`) belong to the company owner: anyone else is
+an `APIError` 403. An OAuth credential needs `company:write`
+(`InsufficientPermissionError` without it); an IBGE check that cannot run right
+now is a 503 with nothing written — retry.
 
 ## Suggesting a classification
 
