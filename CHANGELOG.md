@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.22.0 — 2026-11-21
+
+### Features
+- **company:** update() for PATCH /company (stackin-api#554)
+
+### Docs
+- **readme:** Company.update and the new readiness fields (stackin-api#554)
+- **invoice:** readiness() names the API 0.30.0 fields (stackin-api#554)
+
+### Tests
+- **company:** update body, local refusals and API errors (stackin-api#554)
+
 ## v0.21.0 — 2026-11-20
 
 ### Features
