@@ -858,11 +858,18 @@ class Invoice(_Client):
     def readiness(self, *, company: str | None = None) -> dict:
         """Whether the company can issue right now, and if not, why.
 
-        `ready` is False with `missing` naming the cause: certificate,
-        certificate_expired, certificate_unreadable or address. Also
-        `certificate_expires_at`, `tax_regime` (CRT), `state` and the
-        `default_series` per document type. Ask before a first document
-        instead of failing it.
+        `ready` (at least one document type can be issued) is False with
+        `missing` naming the cause: certificate, certificate_expired,
+        certificate_unreadable, address, state_registration (NF-e) or
+        plan. `by_document_type` breaks it down per nfe/nfse — `ready`,
+        `missing` and `warnings`, each issue a `code` plus, for address,
+        the `fields` at fault — and `fix_url` is the dashboard screen for
+        the first blocker (None when nothing blocks). Also
+        `certificate_expires_at`, `tax_regime` (CRT), `state`, the
+        `default_series` per document type and `suggested_fiscal_fields`,
+        what the CNPJ registry suggests where it differs, never applied.
+        Ask before a first document instead of failing it; fix the
+        address and fiscal fields with `Company.update()`.
         """
         return cast(dict, self._request("GET", "/company", company=company))
 

@@ -8,6 +8,7 @@ __description__ = (
 from .core.address import Address
 from .core.client import Invoice
 from .core.clients import Clients
+from .core.company import Company
 from .core.exceptions import (
     APIError,
     ClientAlreadyExistsError,
@@ -31,6 +32,7 @@ __all__ = [
     "Invoice",
     "Clients",
     "Webhooks",
+    "Company",
     "EVENTS",
     "FiscalReference",
     "Kind",
