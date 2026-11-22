@@ -235,7 +235,7 @@ Product(description="Gasolina C", ncm="27101259", cfop="5656", fuel=Fuel(anp_cod
 
 `ibs_cbs` on a `Product` is the Reforma Tributária group, and what it takes depends on the document type. The API enforces it, by field name; the SDK checks only the formats.
 
-On an **NF-e**: `cst` (3 digits), `classification` (the 6-digit cClassTrib), `rate_state`, `rate_city` and `rate_federal` (percent) are required; `base` defaults to the item amount. `reduction_ibs` and `reduction_cbs` (0 to 100) are the cClassTrib's pRedIBS and pRedCBS — the API requires them for CST 011, 200 and 515 and refuses them for any other, so the SDK checks only the range and leaves the CST rule to the API. Left out, they are not sent:
+On an **NF-e**: `cst` (3 digits), `classification` (the 6-digit cClassTrib), `rate_state`, `rate_city` and `rate_federal` (percent) are required; `base` defaults to the item amount. `reduction_ibs` and `reduction_cbs` (0 to 100) are the cClassTrib's pRedIBS and pRedCBS — the API takes them for CST 011, 200 and 515 only and refuses them for any other; left out, they are not sent and the API reads them from the classification table, refusing the item when the table has none. The SDK checks only the range and leaves the CST rule to the API:
 
 ```python
 from stackin.br import IbsCbs, Product

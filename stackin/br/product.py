@@ -46,7 +46,8 @@ class IbsCbs(BaseModel):
         description=(
             "pRedAliq of the IBS (state and municipality), percent: the "
             "cClassTrib's pRedIBS in the official classification table. "
-            "Required for CST 011, 200 and 515, refused for any other."
+            "For CST 011, 200 and 515 only; left out, the API takes it "
+            "from the table."
         ),
     )
     reduction_cbs: float | None = Field(
@@ -55,7 +56,8 @@ class IbsCbs(BaseModel):
         le=100,
         description=(
             "pRedAliq of the CBS, percent: the cClassTrib's pRedCBS. "
-            "Required for CST 011, 200 and 515, refused for any other."
+            "For CST 011, 200 and 515 only; left out, the API takes it "
+            "from the table."
         ),
     )
 
