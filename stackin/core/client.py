@@ -393,7 +393,8 @@ class Invoice(_Client):
         tax_id, foreign_id and address fill whichever of client_name,
         tax_id, foreign_id and recipient_address are left out, and the
         ones passed win. Those four are then no longer required here;
-        the API checks the merged request. After a successful issuance
+        the API checks the merged request. Its e-mail and phone likewise
+        fill client_email and client_phone when left out. After a successful issuance
         a new recipient is saved as a client; `update_client=True`
         rewrites an existing one with this request's recipient data.
 
