@@ -320,6 +320,38 @@ class TestIbsCbs(unittest.TestCase):
                 ):
                     IbsCbs(**self.group(**{field: value}))
 
+    def test_the_nfse_shape_sends_no_rates(self):
+        product = Product(
+            description="Consultoria",
+            unit_price=Decimal("100.00"),
+            ibs_cbs=IbsCbs(
+                cst="000", classification="000001", operation_indicator="100301"
+            ),
+        )
+
+        group = product.to_dict()["product"]["br"]["ibs_cbs"]
+
+        self.assertEqual(
+            group,
+            {
+                "cst": "000",
+                "classification": "000001",
+                "operation_indicator": "100301",
+            },
+        )
+
+    def test_an_operation_indicator_that_is_not_six_digits_is_refused(self):
+        for value in ("10030", "1003011", "10030a"):
+            with self.subTest(value=value), self.assertRaises(ValidationError):
+                IbsCbs(cst="000", classification="000001", operation_indicator=value)
+
+    def test_the_rates_are_optional_and_left_to_the_api(self):
+        group = IbsCbs(cst="000", classification="000001")
+
+        self.assertIsNone(group.rate_state)
+        self.assertIsNone(group.rate_city)
+        self.assertIsNone(group.rate_federal)
+
     def test_the_cst_rule_is_left_to_the_api(self):
         group = IbsCbs(**self.group(cst="000", reduction_ibs=0))
 
