@@ -383,10 +383,18 @@ class ErrorsTest(unittest.TestCase):
         self.assertIsNone(error.index)
 
     def test_422_tax_required(self):
+        error = _refused(
+            422, {"code": "ITEM_TAX_REQUIRED", "item_id": ITEM_ID, "index": 1}
+        )
+
+        assert isinstance(error, ItemTaxRequiredError)
+        self.assertEqual((error.item_id, error.index), (ITEM_ID, 1))
+
+    def test_422_tax_required_without_an_index(self):
         error = _refused(422, {"code": "ITEM_TAX_REQUIRED", "item_id": ITEM_ID})
 
         assert isinstance(error, ItemTaxRequiredError)
-        self.assertEqual(error.item_id, ITEM_ID)
+        self.assertIsNone(error.index)
 
     def test_422_tax_regime_mismatch(self):
         error = _refused(

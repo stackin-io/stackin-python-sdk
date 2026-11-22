@@ -134,12 +134,15 @@ class ItemKindMismatchError(APIError):
 class ItemTaxRequiredError(APIError):
     """422: the item's tax_situation needs a base and a rate it does not keep.
 
-    Send `product.br.tax` on that line. `item_id` names the item.
+    Send `product.br.tax` on that line. `item_id` names the item and `index`
+    the line of `items` (None when the API does not say).
     """
 
     def __init__(self, status_code: int, detail: Any) -> None:
         super().__init__(status_code, detail)
         self.item_id: str = str(detail.get("item_id") or "")
+        index = detail.get("index")
+        self.index: int | None = index if isinstance(index, int) else None
 
 
 class ItemTaxRegimeMismatchError(APIError):
