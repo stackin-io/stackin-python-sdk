@@ -572,9 +572,15 @@ Invoice(api_key="...").issue(
 - `client_email` and `client_phone` on `issue()` are the recipient's contact. They are
   saved on the client created after a successful issuance, and on an existing client
   only with `update_client=True` (then only the ones sent; a missing one never erases a
-  saved one). They are not written into the fiscal document and a reissue does not
-  touch the client. Left out, they are not sent; the API validates them (a valid e-mail;
-  8 to 15 digits for the phone, optional leading `+`).
+  saved one). They are also kept on the invoice and sent again on a reissue (which
+  does not touch the client), and written into the fiscal document: NF-e `dest/email`
+  (up to 60 characters) and `dest/enderDest/fone` (digits only, up to 14, only with a
+  `recipient_address`); NFS-e `toma/email` (up to 80) and `toma/fone` (up to 20 digits).
+  The phone goes out digits only, area code first; a `+55` is dropped unless the
+  recipient is abroad. A value the layout cannot carry (too long, an e-mail with
+  characters beyond Latin-1) is left out of the document and the issuance goes on.
+  Left out, they are not sent; the API validates them (a valid e-mail; 8 to 15 digits
+  for the phone, optional leading `+`).
 - Reading needs `invoice:read`; creating, editing and deactivating need
   `invoice:issue`. `company` works here as everywhere else.
 

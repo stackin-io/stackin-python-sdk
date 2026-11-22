@@ -400,11 +400,19 @@ class Invoice(_Client):
         `client_email` and `client_phone` are the recipient's contact,
         saved on the Stackin client after a successful issuance (on an
         existing client only with `update_client=True`, and only the ones
-        sent: a missing one never erases a saved one). They are not
-        written into the fiscal document, and a reissue does not touch
-        the client. Each is left out of the body when unset; the API
-        owns the format rules (a valid e-mail; 8 to 15 digits for the
-        phone, optional leading +) and answers a bad one as an APIError.
+        sent: a missing one never erases a saved one). They are also
+        kept on the invoice and sent again on a reissue (which does not
+        touch the client), and written into the fiscal document: NF-e
+        dest/email (up to 60 characters) and dest/enderDest/fone (digits
+        only, up to 14, only with a recipient_address); NFS-e toma/email
+        (up to 80) and toma/fone (up to 20 digits). The phone goes out
+        digits only, area code first; a +55 is dropped unless the
+        recipient is abroad. A value the layout cannot carry (too long,
+        an e-mail with characters beyond Latin-1) is left out of the
+        document and the issuance goes on. Each is left out of the body
+        when unset; the API owns the format rules (a valid e-mail; 8 to
+        15 digits for the phone, optional leading +) and answers a bad
+        one as an APIError.
 
         A line with `item_id` names a catalog item (see Items): it fills
         whichever of the line's description, price, unit, barcode, ncm,
