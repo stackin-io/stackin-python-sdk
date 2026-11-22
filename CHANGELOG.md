@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.25.0 — 2026-11-22
+
+### Features
+- **company:** simples_apuracao_ibs_cbs fiscal field (#53)
+- **product:** NFS-e ibs_cbs with operation_indicator and optional rates (#53)
+- **reference:** calculate_ibs_cbs for POST /ibs-cbs/calculate (#53)
+
+### Bug Fixes
+- **reference:** send a datetime operation_date as its date (#53)
+
+### Docs
+- **product:** reductions are read from the cClassTrib table when left out (#53)
+- **readme:** IBS/CBS simulation and the NFS-e ibs_cbs shape (#53)
+- **issue:** client_id also fills the recipient's e-mail and phone
+
 ## v0.24.1 — 2026-11-22
 
 ### Docs
