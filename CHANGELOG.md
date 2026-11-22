@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.24.0 — 2026-11-22
+
+### Features
+- **invoice:** client_email and client_phone on issue() (#49)
+
+### Tests
+- **invoice:** client_email and client_phone in the issue body (#49)
+
 ## v0.23.0 — 2026-11-22
 
 ### Features
