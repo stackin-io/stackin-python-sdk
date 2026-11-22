@@ -11,14 +11,34 @@ from stackin.br.tax import Tax
 
 
 class IbsCbs(BaseModel):
-    """The Reforma Tributária group for one item."""
+    """The Reforma Tributária group for one item.
+
+    On an NF-e send the three rates (plus `base` and the reductions when
+    they apply). On an NFS-e send only `cst`, `classification` and
+    `operation_indicator`: the Sefin Nacional computes the rest. The
+    API enforces which fields each document type takes.
+    """
 
     cst: str = Field(pattern=r"^\d{3}$")
     classification: str = Field(pattern=r"^\d{6}$")
-    base: float | None = Field(default=None, gt=0)
-    rate_state: float = Field(ge=0)
-    rate_city: float = Field(ge=0)
-    rate_federal: float = Field(ge=0)
+    base: float | None = Field(default=None, gt=0, description="vBC, NF-e only.")
+    rate_state: float | None = Field(
+        default=None, ge=0, description="pIBSUF, percent. Required on an NF-e."
+    )
+    rate_city: float | None = Field(
+        default=None, ge=0, description="pIBSMun, percent. Required on an NF-e."
+    )
+    rate_federal: float | None = Field(
+        default=None, ge=0, description="pCBS, percent. Required on an NF-e."
+    )
+    operation_indicator: str | None = Field(
+        default=None,
+        pattern=r"^\d{6}$",
+        description=(
+            "cIndOp, NFS-e only: the code of the place-of-supply table "
+            "(NFS-e Anexo VII). Required on a production NFS-e."
+        ),
+    )
     reduction_ibs: float | None = Field(
         default=None,
         ge=0,
@@ -26,7 +46,8 @@ class IbsCbs(BaseModel):
         description=(
             "pRedAliq of the IBS (state and municipality), percent: the "
             "cClassTrib's pRedIBS in the official classification table. "
-            "Required for CST 011, 200 and 515, refused for any other."
+            "For CST 011, 200 and 515 only; left out, the API takes it "
+            "from the table."
         ),
     )
     reduction_cbs: float | None = Field(
@@ -35,7 +56,8 @@ class IbsCbs(BaseModel):
         le=100,
         description=(
             "pRedAliq of the CBS, percent: the cClassTrib's pRedCBS. "
-            "Required for CST 011, 200 and 515, refused for any other."
+            "For CST 011, 200 and 515 only; left out, the API takes it "
+            "from the table."
         ),
     )
 

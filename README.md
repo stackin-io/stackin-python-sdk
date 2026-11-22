@@ -231,14 +231,22 @@ from stackin.br import Fuel, Product
 Product(description="Gasolina C", ncm="27101259", cfop="5656", fuel=Fuel(anp_code="320102001", anp_description="GASOLINA C COMUM", consumer_state="SP"))
 ```
 
-### IBS/CBS (NF-e)
+### IBS/CBS
 
-`ibs_cbs` on a `Product` is the Reforma Tributária group: `cst` (3 digits), `classification` (the 6-digit cClassTrib), `rate_state`, `rate_city` and `rate_federal` (percent) are required; `base` defaults to the item amount. `reduction_ibs` and `reduction_cbs` (0 to 100) are the cClassTrib's pRedIBS and pRedCBS — the API requires them for CST 011, 200 and 515 and refuses them for any other, so the SDK checks only the range and leaves the CST rule to the API. Left out, they are not sent:
+`ibs_cbs` on a `Product` is the Reforma Tributária group, and what it takes depends on the document type. The API enforces it, by field name; the SDK checks only the formats.
+
+On an **NF-e**: `cst` (3 digits), `classification` (the 6-digit cClassTrib), `rate_state`, `rate_city` and `rate_federal` (percent) are required; `base` defaults to the item amount. `reduction_ibs` and `reduction_cbs` (0 to 100) are the cClassTrib's pRedIBS and pRedCBS — the API takes them for CST 011, 200 and 515 only and refuses them for any other; left out, they are not sent and the API reads them from the classification table, refusing the item when the table has none. The SDK checks only the range and leaves the CST rule to the API:
 
 ```python
 from stackin.br import IbsCbs, Product
 
 Product(description="Arroz", ncm="10063021", cfop="5102", ibs_cbs=IbsCbs(cst="200", classification="200003", rate_state=0.1, rate_city=0.0, rate_federal=0.9, reduction_ibs=60, reduction_cbs=60))
+```
+
+On an **NFS-e**: only `cst`, `classification` and `operation_indicator` (cIndOp, the 6-digit code of the NFS-e place-of-supply table, mandatory on a production NFS-e). The Sefin Nacional computes the base, rates and amounts, so the API refuses the rates, `base` and the reductions there. An ME/EPP may send the group only with `simples_apuracao_ibs_cbs` `"3"` (see `Company.update`); an MEI never:
+
+```python
+Product(description="Consultoria", unit_price=Decimal("1000.00"), ibs_cbs=IbsCbs(cst="000", classification="000001", operation_indicator="100301"))
 ```
 
 ## Retrying safely
@@ -401,7 +409,9 @@ address takes `street`, `number`, `neighborhood`, `municipality_code`,
 in the dashboard; any other key is a `ValueError` before the call, as are a
 `municipality_code` that is not 7 digits, a `zip_code` that is not 8 and a
 `tax_regime` (1–4), `simples_nacional` or `simples_apuracao` (1–3) outside its
-codes. `fiscal_fields` (`tax_regime`, `simples_nacional`, `simples_apuracao`,
+codes, or a `simples_apuracao_ibs_cbs` other than 1 (IBS/CBS in the DAS) or 3
+(outside it, which an ME/EPP needs for IBS/CBS on an NFS-e). `fiscal_fields`
+(`tax_regime`, `simples_nacional`, `simples_apuracao`, `simples_apuracao_ibs_cbs`,
 `state_registration`, `service_code`) belong to the company owner: anyone else is
 an `APIError` 403. An OAuth credential needs `company:write`
 (`InsufficientPermissionError` without it); an IBGE check that cannot run right
@@ -523,6 +533,27 @@ Three things worth knowing before you loop:
 - **A 404 from `Taxpayer` does not mean the company does not exist.** That registry reloads monthly, so a recently registered CNPJ is simply not in it yet. Do not build a validation rule on it.
 
 `Taxpayer` has one method and keeps one: the registry holds the names and addresses of real people, so there is no search over it, by design.
+
+### Simulating IBS/CBS
+
+`calculate_ibs_cbs` runs the NF-e IBS/CBS calculation and the cClassTrib/CST checks of NF-e issuance over 1 to 990 items, and answers per item and in total. **It is a simulation**: nothing is issued, stored or sent to a tax authority, and the result is not a fiscal document.
+
+```python
+from stackin import FiscalReference
+
+result = FiscalReference(api_key="...").calculate_ibs_cbs(
+    [{"cst": "000", "classification": "000001", "amount": 100}],
+    operation_date="2026-11-22",
+)
+result.items[0].amounts.cbs     # "0.90"
+result.items[0].rates_source    # "official_2026"
+result.total.ibs
+```
+
+- `rates` (`IbsCbsRates` or a mapping of `rate_state`, `rate_city`, `rate_federal`) apply to every item; an item's own rate wins. With no rates and an `operation_date` in 2026 the official 2026 rates apply (CBS 0.9%, IBS UF 0.1%, IBS Mun 0%); outside 2026 they are required, or the API answers `APIError` 422 `IBS_CBS_RATES_REQUIRED`.
+- Each item takes `cst`, `classification`, `amount` or `base`, and optionally its own rates and `reduction_ibs`/`reduction_cbs`.
+- `document_type` (`nfe`, `nfce` or `nfse`) only picks the model the cClassTrib is checked for. The amounts are always the NF-e's: an NFS-e's are computed by the Sefin Nacional, not by Stackin.
+- The result is an `IbsCbsCalculation`; amounts and rates are decimal strings, as the API sends them. A refused cClassTrib or CST is an `APIError` 422 whose `detail` carries the code and a `field` pointing into the request.
 
 ## Saved clients
 
