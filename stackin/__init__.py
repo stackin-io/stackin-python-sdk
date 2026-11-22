@@ -19,9 +19,16 @@ from .core.exceptions import (
     ConnectionFailedError,
     InsufficientPermissionError,
     InvoiceError,
+    ItemAlreadyExistsError,
+    ItemInactiveError,
+    ItemKindMismatchError,
+    ItemNotFoundError,
+    ItemTaxRegimeMismatchError,
+    ItemTaxRequiredError,
     PaymentRequiredError,
     RateLimitedError,
 )
+from .core.items import CatalogItem, Items, ItemSaved
 from .core.reference import KINDS, FiscalReference, Kind
 from .core.taxpayer import Taxpayer
 from .core.types import Direction, DocumentType, Environment, Manifestation, Purpose
@@ -31,6 +38,9 @@ from .core.webhooks import EVENTS, Webhooks
 __all__ = [
     "Invoice",
     "Clients",
+    "Items",
+    "CatalogItem",
+    "ItemSaved",
     "Webhooks",
     "Company",
     "EVENTS",
@@ -55,6 +65,12 @@ __all__ = [
     "ClientAlreadyExistsError",
     "ClientInactiveError",
     "ClientNotFoundError",
+    "ItemAlreadyExistsError",
+    "ItemNotFoundError",
+    "ItemInactiveError",
+    "ItemKindMismatchError",
+    "ItemTaxRequiredError",
+    "ItemTaxRegimeMismatchError",
     "PaymentRequiredError",
     "RateLimitedError",
 ]

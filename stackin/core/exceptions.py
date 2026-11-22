@@ -85,6 +85,82 @@ class ClientNotFoundError(APIError):
         self.client_id: str = str(detail.get("client_id") or "")
 
 
+class ItemAlreadyExistsError(APIError):
+    """409: the company already has an item with this code or external_reference.
+
+    `item_id` names that item and `field` says which of the two collided
+    (code or external_reference). A deactivated item still holds its code.
+    """
+
+    def __init__(self, status_code: int, detail: Any) -> None:
+        super().__init__(status_code, detail)
+        self.item_id: str = str(detail.get("item_id") or "")
+        self.field: str = str(detail.get("field") or "")
+
+
+class ItemNotFoundError(APIError):
+    """404: no item of this company has that item_id."""
+
+    def __init__(self, status_code: int, detail: Any) -> None:
+        super().__init__(status_code, detail)
+        self.item_id: str = str(detail.get("item_id") or "")
+
+
+class ItemInactiveError(APIError):
+    """422: the catalog item named by item_id was deactivated.
+
+    `item_id` names it; Items.reactivate() brings it back.
+    """
+
+    def __init__(self, status_code: int, detail: Any) -> None:
+        super().__init__(status_code, detail)
+        self.item_id: str = str(detail.get("item_id") or "")
+
+
+class ItemKindMismatchError(APIError):
+    """422: a service item on an NF-e, or a product item on an NFS-e.
+
+    `item_id` names the item and `index` the line of `items` that named it
+    (None when the API does not say).
+    """
+
+    def __init__(self, status_code: int, detail: Any) -> None:
+        super().__init__(status_code, detail)
+        self.item_id: str = str(detail.get("item_id") or "")
+        index = detail.get("index")
+        self.index: int | None = index if isinstance(index, int) else None
+
+
+class ItemTaxRequiredError(APIError):
+    """422: the item's tax_situation needs a base and a rate it does not keep.
+
+    Send `product.br.tax` on that line. `item_id` names the item and `index`
+    the line of `items` (None when the API does not say).
+    """
+
+    def __init__(self, status_code: int, detail: Any) -> None:
+        super().__init__(status_code, detail)
+        self.item_id: str = str(detail.get("item_id") or "")
+        index = detail.get("index")
+        self.index: int | None = index if isinstance(index, int) else None
+
+
+class ItemTaxRegimeMismatchError(APIError):
+    """422: the item's CST/CSOSN does not fit the company's tax regime.
+
+    A CSOSN is for Simples Nacional (CRT 1 or 4) and a CST for any other
+    regime, and an export CFOP allows only CSOSN 300 or CST 41. Send
+    `product.br.tax` on that line, or fix the item. `item_id` names the
+    item and `index` the line (None when the API does not say).
+    """
+
+    def __init__(self, status_code: int, detail: Any) -> None:
+        super().__init__(status_code, detail)
+        self.item_id: str = str(detail.get("item_id") or "")
+        index = detail.get("index")
+        self.index: int | None = index if isinstance(index, int) else None
+
+
 class PaymentRequiredError(APIError):
     """402: the account has no allowance or credit left for this call.
 
@@ -181,6 +257,18 @@ def _api_error(
             return ClientInactiveError(status_code, detail)
         if status_code == 404 and detail.get("code") == "CLIENT_NOT_FOUND":
             return ClientNotFoundError(status_code, detail)
+        if status_code == 409 and detail.get("code") == "ITEM_EXISTS":
+            return ItemAlreadyExistsError(status_code, detail)
+        if status_code == 404 and detail.get("code") == "ITEM_NOT_FOUND":
+            return ItemNotFoundError(status_code, detail)
+        if status_code == 422 and detail.get("code") == "ITEM_INACTIVE":
+            return ItemInactiveError(status_code, detail)
+        if status_code == 422 and detail.get("code") == "ITEM_KIND_MISMATCH":
+            return ItemKindMismatchError(status_code, detail)
+        if status_code == 422 and detail.get("code") == "ITEM_TAX_REQUIRED":
+            return ItemTaxRequiredError(status_code, detail)
+        if status_code == 422 and detail.get("code") == "ITEM_TAX_REGIME_MISMATCH":
+            return ItemTaxRegimeMismatchError(status_code, detail)
         if status_code == 422 and detail.get("error") == "company_required":
             return CompanyRequiredError(status_code, detail)
         if status_code == 403 and detail.get("error") == "company_not_in_scope":
