@@ -23,6 +23,7 @@ from .core.exceptions import (
     ItemInactiveError,
     ItemKindMismatchError,
     ItemNotFoundError,
+    ItemTaxRegimeMismatchError,
     ItemTaxRequiredError,
     PaymentRequiredError,
     RateLimitedError,
@@ -69,6 +70,7 @@ __all__ = [
     "ItemInactiveError",
     "ItemKindMismatchError",
     "ItemTaxRequiredError",
+    "ItemTaxRegimeMismatchError",
     "PaymentRequiredError",
     "RateLimitedError",
 ]

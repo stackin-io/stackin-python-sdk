@@ -142,6 +142,22 @@ class ItemTaxRequiredError(APIError):
         self.item_id: str = str(detail.get("item_id") or "")
 
 
+class ItemTaxRegimeMismatchError(APIError):
+    """422: the item's CST/CSOSN does not fit the company's tax regime.
+
+    A CSOSN is for Simples Nacional (CRT 1 or 4) and a CST for any other
+    regime, and an export CFOP allows only CSOSN 300 or CST 41. Send
+    `product.br.tax` on that line, or fix the item. `item_id` names the
+    item and `index` the line (None when the API does not say).
+    """
+
+    def __init__(self, status_code: int, detail: Any) -> None:
+        super().__init__(status_code, detail)
+        self.item_id: str = str(detail.get("item_id") or "")
+        index = detail.get("index")
+        self.index: int | None = index if isinstance(index, int) else None
+
+
 class PaymentRequiredError(APIError):
     """402: the account has no allowance or credit left for this call.
 
@@ -248,6 +264,8 @@ def _api_error(
             return ItemKindMismatchError(status_code, detail)
         if status_code == 422 and detail.get("code") == "ITEM_TAX_REQUIRED":
             return ItemTaxRequiredError(status_code, detail)
+        if status_code == 422 and detail.get("code") == "ITEM_TAX_REGIME_MISMATCH":
+            return ItemTaxRegimeMismatchError(status_code, detail)
         if status_code == 422 and detail.get("error") == "company_required":
             return CompanyRequiredError(status_code, detail)
         if status_code == 403 and detail.get("error") == "company_not_in_scope":

@@ -17,6 +17,7 @@ from stackin import (
     ItemNotFoundError,
     Items,
     ItemSaved,
+    ItemTaxRegimeMismatchError,
     ItemTaxRequiredError,
 )
 from stackin.br import Product
@@ -386,6 +387,22 @@ class ErrorsTest(unittest.TestCase):
 
         assert isinstance(error, ItemTaxRequiredError)
         self.assertEqual(error.item_id, ITEM_ID)
+
+    def test_422_tax_regime_mismatch(self):
+        error = _refused(
+            422,
+            {
+                "code": "ITEM_TAX_REGIME_MISMATCH",
+                "message": "CSOSN on a CRT 3 company",
+                "item_id": ITEM_ID,
+                "index": 2,
+            },
+        )
+
+        assert isinstance(error, ItemTaxRegimeMismatchError)
+        self.assertEqual(error.item_id, ITEM_ID)
+        self.assertEqual(error.index, 2)
+        self.assertEqual(error.status_code, 422)
 
     def test_a_code_on_the_wrong_status_stays_a_plain_apierror(self):
         error = _refused(500, {"code": "ITEM_EXISTS"})

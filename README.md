@@ -656,7 +656,7 @@ Invoice(api_key="...").issue(
   what the line sends wins. `description` is then optional, and the SDK leaves the NF-e
   `ncm`/`cfop` check to the API. A catalog `tax_situation` fills `product.br.tax` only for the
   ones that carry no amount (CSOSN 102, 103, 300, 400, CST 40, 41, 50); any other needs the
-  line to send `tax` (`ItemTaxRequiredError`).
+  line to send `tax` (`ItemTaxRequiredError`), or `ItemTaxRegimeMismatchError` when the item's CST/CSOSN does not fit the company's regime.
 - Reading needs `invoice:read`; creating, editing and deactivating need `invoice:issue`.
   `company` works here as everywhere else.
 - The CSV import is a dashboard feature and is not in the SDK.
@@ -701,6 +701,7 @@ the API ignores it there.
 - `stackin.ItemInactiveError` (an `APIError`, 422) — `issue()` with the `item_id` of a deactivated item. `Items.reactivate()` brings it back.
 - `stackin.ItemKindMismatchError` (an `APIError`, 422) — a service item on an NF-e or a product item on an NFS-e. `item_id` names it and `index` the line.
 - `stackin.ItemTaxRequiredError` (an `APIError`, 422) — a line whose item has a `tax_situation` that needs a base and a rate the catalog does not keep; send `product.br.tax` on that line.
+- `stackin.ItemTaxRegimeMismatchError` (an `APIError`, 422) — a line whose item's CST/CSOSN does not fit the company's tax regime (a CSOSN is for Simples Nacional, a CST for the rest), or is not allowed on an export CFOP; `item_id` and `index` name the item and the line.
 - `stackin.ConnectionFailedError` — the API didn't respond (network/DNS/timeout).
 - `ValueError` — `issue()` without `client_name` or `tax_id` and no `client_id` (`tax_id` may be left out for an NF-e to a buyer abroad), `items` is empty, missing `ncm`/`cfop` on an item for NFE (a line with `item_id` is left to the API), an item `description` over 120 characters on NFE (the `xProd` limit; NFSE has no such limit), any string in an NFE request with a character the NF-e cannot carry (outside ISO-8859-1, latin1: an emoji, CJK, Cyrillic…; the error names the field — typographic quotes, dashes, ellipsis, bullet, `€` and `™` are not refused, the API converts them and folds tabs and line breaks into a space), a missing/incomplete `recipient_address` on NFE, or a missing/incomplete `recipient_address` (every field except `city_code`) on NFSE when any item has `tax_retained=True` (the ISSQN retained by the tomador).
 - `ValueError` — `correct()` with a key that is not an NF-e access key (44 characters): a correction letter exists only on NF-e; an NFS-e is cancelled and reissued instead. An NF-e key sent with `DocumentType.NFSE`, or one the API does not hold, is an `APIError` 409, not a `ValueError`.
