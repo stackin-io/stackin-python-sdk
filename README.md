@@ -565,7 +565,9 @@ Invoice(api_key="...").issue(
   refused like a create without one.
 - On `issue()`, the client fills whichever of `client_name`, `tax_id`, `foreign_id`
   and `recipient_address` are left out; the ones passed win. With `client_id` none
-  of those four is required by the SDK: the API checks the merged request. A
+  of those four is required by the SDK: the API checks the merged request. The
+  client's e-mail and phone likewise fill `client_email` and `client_phone` when
+  left out. A
   deactivated client is refused there (422) until it is reactivated.
 - `update_client=True` on `issue()` rewrites an existing client with that request's
   recipient data. Left out, the issuance only counts one more use of it.
