@@ -274,12 +274,18 @@ class Product(BaseModel):
             br["tax"] = self.tax
         if br:
             data["br"] = br
+        # With a catalog item, a default the caller did not set must not
+        # override what the catalog holds (its unit, its iss_retained).
+        # A value the caller did set is still sent, False included.
+        from_catalog = self.item_id is not None
+        if from_catalog and "unit" not in self.model_fields_set:
+            data.pop("unit", None)
         line: dict[str, Any] = {}
         if self.item_id is not None:
             line["item_id"] = self.item_id
         if self.description is not None:
             line["description"] = self.description
-        return {
+        result = {
             **line,
             "amount": _decimal_str(self.amount),
             "unit_price": _decimal_str(self.unit_price),
@@ -289,3 +295,6 @@ class Product(BaseModel):
             "tax_retained": self.tax_retained,
             "observations": self.observations,
         }
+        if from_catalog and "tax_retained" not in self.model_fields_set:
+            del result["tax_retained"]
+        return result

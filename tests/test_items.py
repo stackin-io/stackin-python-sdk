@@ -463,6 +463,24 @@ class IssueWithItemTest(unittest.TestCase):
         self.assertEqual(line["description"], "Outro")
         self.assertEqual(line["unit_price"], "9.5")
 
+    def test_item_id_alone_leaves_the_catalog_unit_and_retention_alone(self):
+        line = _line(item_id=ITEM_ID).to_dict()
+
+        self.assertNotIn("unit", line["product"])
+        self.assertNotIn("tax_retained", line)
+
+    def test_item_id_with_unit_and_retention_set_sends_them_even_false(self):
+        line = _line(item_id=ITEM_ID, unit="KG", tax_retained=False).to_dict()
+
+        self.assertEqual(line["product"]["unit"], "KG")
+        self.assertIs(line["tax_retained"], False)
+
+    def test_without_item_id_unit_and_retention_keep_their_defaults(self):
+        line = _line(description="Servico").to_dict()
+
+        self.assertEqual(line["product"]["unit"], "UN")
+        self.assertIs(line["tax_retained"], False)
+
     def test_a_line_without_item_id_sends_the_same_keys_as_before(self):
         line = _line(description="Servico", amount=Decimal("10")).to_dict()
 

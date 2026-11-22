@@ -653,7 +653,7 @@ Invoice(api_key="...").issue(
   product into a service while it still has an `ncm` is refused. `source` never changes.
 - On `issue()`, a line with `item_id` takes whichever of `description`, `unit_price`, `unit`,
   `barcode`, `ncm`, `cfop`, `cest`, `tax`, `service_code` and `tax_retained` it leaves out;
-  what the line sends wins. `description` is then optional, and the SDK leaves the NF-e
+  what the line sends wins. A `unit` or `tax_retained` the line does not set is not sent, so the catalog's apply; one you set is sent, `tax_retained=False` included. `description` is then optional, and the SDK leaves the NF-e
   `ncm`/`cfop` check to the API. A catalog `tax_situation` fills `product.br.tax` only for the
   ones that carry no amount (CSOSN 102, 103, 300, 400, CST 40, 41, 50); any other needs the
   line to send `tax` (`ItemTaxRequiredError`), or `ItemTaxRegimeMismatchError` when the item's CST/CSOSN does not fit the company's regime.
