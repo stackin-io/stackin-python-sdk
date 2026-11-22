@@ -569,6 +569,12 @@ Invoice(api_key="...").issue(
   deactivated client is refused there (422) until it is reactivated.
 - `update_client=True` on `issue()` rewrites an existing client with that request's
   recipient data. Left out, the issuance only counts one more use of it.
+- `client_email` and `client_phone` on `issue()` are the recipient's contact. They are
+  saved on the client created after a successful issuance, and on an existing client
+  only with `update_client=True` (then only the ones sent; a missing one never erases a
+  saved one). They are not written into the fiscal document and a reissue does not
+  touch the client. Left out, they are not sent; the API validates them (a valid e-mail;
+  8 to 15 digits for the phone, optional leading `+`).
 - Reading needs `invoice:read`; creating, editing and deactivating need
   `invoice:issue`. `company` works here as everywhere else.
 
