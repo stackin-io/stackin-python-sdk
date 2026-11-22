@@ -369,6 +369,8 @@ class Invoice(_Client):
         company: str | None = None,
         client_id: str | None = None,
         update_client: bool = False,
+        client_email: str | None = None,
+        client_phone: str | None = None,
         contingency: bool = False,
     ) -> dict:
         """Issues a fiscal document.
@@ -394,6 +396,15 @@ class Invoice(_Client):
         the API checks the merged request. After a successful issuance
         a new recipient is saved as a client; `update_client=True`
         rewrites an existing one with this request's recipient data.
+
+        `client_email` and `client_phone` are the recipient's contact,
+        saved on the Stackin client after a successful issuance (on an
+        existing client only with `update_client=True`, and only the ones
+        sent: a missing one never erases a saved one). They are not
+        written into the fiscal document, and a reissue does not touch
+        the client. Each is left out of the body when unset; the API
+        owns the format rules (a valid e-mail; 8 to 15 digits for the
+        phone, optional leading +) and answers a bad one as an APIError.
 
         A line with `item_id` names a catalog item (see Items): it fills
         whichever of the line's description, price, unit, barcode, ncm,
@@ -476,6 +487,10 @@ class Invoice(_Client):
             payload["foreign_id"] = foreign_id
         if update_client:
             payload["update_client"] = True
+        if client_email is not None:
+            payload["client_email"] = client_email
+        if client_phone is not None:
+            payload["client_phone"] = client_phone
         if contingency:
             payload["contingency"] = True
 
