@@ -136,7 +136,18 @@ def _decimal_str(value: Decimal | None) -> str | None:
 class Product(BaseModel):
     """One product or service line item on an invoice."""
 
-    description: str = Field(..., min_length=1)
+    description: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Required unless item_id names a catalog item.",
+    )
+    item_id: str | None = Field(
+        default=None,
+        description=(
+            "A catalog item (see Items): it fills whatever this line "
+            "leaves out, and what the line sends wins."
+        ),
+    )
     amount: Decimal | None = Field(default=None, gt=0)
     unit_price: Decimal | None = Field(default=None, gt=0)
     unit: str = Field(default="UN")
@@ -223,6 +234,13 @@ class Product(BaseModel):
         return value
 
     @model_validator(mode="after")
+    def _description_or_item(self) -> Product:
+        """Without a catalog item there is nothing to fill it from."""
+        if self.description is None and self.item_id is None:
+            raise ValueError("description is required unless item_id is given")
+        return self
+
+    @model_validator(mode="after")
     def _one_fuel_group(self) -> Product:
         """The API refuses the comb group sent twice."""
         if self.fuel is not None and "comb" in (self.extra_groups or {}):
@@ -241,6 +259,7 @@ class Product(BaseModel):
             exclude_none=True,
             exclude={
                 "description",
+                "item_id",
                 "amount",
                 "unit_price",
                 "tax",
@@ -255,8 +274,13 @@ class Product(BaseModel):
             br["tax"] = self.tax
         if br:
             data["br"] = br
+        line: dict[str, Any] = {}
+        if self.item_id is not None:
+            line["item_id"] = self.item_id
+        if self.description is not None:
+            line["description"] = self.description
         return {
-            "description": self.description,
+            **line,
             "amount": _decimal_str(self.amount),
             "unit_price": _decimal_str(self.unit_price),
             "product": data,

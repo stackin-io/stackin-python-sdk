@@ -600,6 +600,67 @@ URL, the secret's length and the event names are checked locally; the API also
 refuses a URL that points at a private network. On an OAuth credential every call
 needs `webhook:manage`.
 
+## Item catalog
+
+The company keeps the products and services it sells. `Items` reads and edits that
+catalog, and a line of `issue()` with `item_id` is filled from it.
+
+```python
+from stackin import DocumentType, Invoice, ItemAlreadyExistsError, Items
+from stackin.br import Product
+
+items = Items(api_key="...")
+
+page = items.list(kind="product", search="cafe", limit=20)   # active ones, by description
+items.list(is_active=False)                                  # the deactivated ones
+items.list(source="nuvemshop", sort_by="uses_count", order_by="desc")
+
+cafe = items.create(kind="product", description="Cafe torrado 500g", code="CAF-500",
+                    unit_price="18.90", ncm="09012100", cfop="5102",
+                    external_reference="ns-variant-1")
+
+saved = items.upsert(kind="product", description="Cafe torrado 500g",
+                     external_reference="ns-variant-1", unit_price="19.90")
+saved.created                                       # False: the same item, updated
+
+items.update(cafe["id"], notes="Safra nova", cest=None)   # None clears
+items.deactivate(cafe["id"])                        # kept, hidden from list()
+items.reactivate(cafe["id"])
+
+Invoice(api_key="...").issue(
+    document_type=DocumentType.NFE,
+    client_id="...",
+    items=[Product(item_id=cafe["id"], quantity=3)],  # description, price, ncm, cfop from it
+)
+```
+
+- `kind` is `product` (NF-e) or `service` (NFS-e) and decides which fiscal fields an item
+  may carry: `ncm`, `cfop`, `tax_situation`, `origin`, `cest`, `gtin` for a product,
+  `service_code` and `iss_retained` for a service. The API refuses the other kind's (422).
+  Nothing fiscal is required to save an item; an NF-e still refuses a line with no `ncm` or
+  `cfop` when it is issued.
+- `create()` is the API's upsert: an item with the same `external_reference` (or the same
+  `code`, when no reference is sent) is updated instead of duplicated, so the same call
+  twice never makes two items. `upsert()` takes the same arguments and answers an
+  `ItemSaved` whose `created` tells a new item (201) from an updated one (200).
+  `source` (`manual`, `import`, `nuvemshop`, `invoice`) counts only on creation.
+- `list()` filters by `kind`, `search` (description, code or `external_reference`; digits also
+  match `ncm` and `gtin`), `source` and `is_active` (the API lists active items when it is left
+  out), and pages with `limit`/`offset`. `sort_by` takes `description`, `code`, `unit_price`,
+  `last_used_at`, `created_at` or `uses_count`.
+- `unit_price` takes a `Decimal` or a string to keep every one of its ten places.
+- `update()` sends only the fields passed. The API checks the item as a whole, so turning a
+  product into a service while it still has an `ncm` is refused. `source` never changes.
+- On `issue()`, a line with `item_id` takes whichever of `description`, `unit_price`, `unit`,
+  `barcode`, `ncm`, `cfop`, `cest`, `tax`, `service_code` and `tax_retained` it leaves out;
+  what the line sends wins. `description` is then optional, and the SDK leaves the NF-e
+  `ncm`/`cfop` check to the API. A catalog `tax_situation` fills `product.br.tax` only for the
+  ones that carry no amount (CSOSN 102, 103, 300, 400, CST 40, 41, 50); any other needs the
+  line to send `tax` (`ItemTaxRequiredError`).
+- Reading needs `invoice:read`; creating, editing and deactivating need `invoice:issue`.
+  `company` works here as everywhere else.
+- The CSV import is a dashboard feature and is not in the SDK.
+
 ## Several companies
 
 An API key belongs to one company and needs none of this. An OAuth credential may
@@ -635,8 +696,13 @@ the API ignores it there.
 - `stackin.ClientNotFoundError` (an `APIError`, 404) — no client of this company has that `client_id`.
 - `stackin.PaymentRequiredError` (an `APIError`, 402) — the account has no allowance or credit left for the call; `detail` says what ran out.
 - `stackin.RateLimitedError` (an `APIError`, 429) — too many calls, or the SEFAZ's one-hour wait on received documents. `retry_after` is the `Retry-After` header in seconds, `code` names the limit (`DISTRIBUTION_COOLDOWN`) and `retry_at` the moment the wait ends; each is `None` when the response does not carry it.
+- `stackin.ItemAlreadyExistsError` (an `APIError`, 409) — `Items.create()`, `upsert()` or `update()` with a `code` or `external_reference` that belongs to another item. `item_id` names that item and `field` says which one collided.
+- `stackin.ItemNotFoundError` (an `APIError`, 404) — an `item_id` that is not this company's, on `Items` or on `issue()`.
+- `stackin.ItemInactiveError` (an `APIError`, 422) — `issue()` with the `item_id` of a deactivated item. `Items.reactivate()` brings it back.
+- `stackin.ItemKindMismatchError` (an `APIError`, 422) — a service item on an NF-e or a product item on an NFS-e. `item_id` names it and `index` the line.
+- `stackin.ItemTaxRequiredError` (an `APIError`, 422) — a line whose item has a `tax_situation` that needs a base and a rate the catalog does not keep; send `product.br.tax` on that line.
 - `stackin.ConnectionFailedError` — the API didn't respond (network/DNS/timeout).
-- `ValueError` — `issue()` without `client_name` or `tax_id` and no `client_id` (`tax_id` may be left out for an NF-e to a buyer abroad), `items` is empty, missing `ncm`/`cfop` on an item for NFE, an item `description` over 120 characters on NFE (the `xProd` limit; NFSE has no such limit), any string in an NFE request with a character the NF-e cannot carry (outside ISO-8859-1, latin1: an emoji, CJK, Cyrillic…; the error names the field — typographic quotes, dashes, ellipsis, bullet, `€` and `™` are not refused, the API converts them and folds tabs and line breaks into a space), a missing/incomplete `recipient_address` on NFE, or a missing/incomplete `recipient_address` (every field except `city_code`) on NFSE when any item has `tax_retained=True` (the ISSQN retained by the tomador).
+- `ValueError` — `issue()` without `client_name` or `tax_id` and no `client_id` (`tax_id` may be left out for an NF-e to a buyer abroad), `items` is empty, missing `ncm`/`cfop` on an item for NFE (a line with `item_id` is left to the API), an item `description` over 120 characters on NFE (the `xProd` limit; NFSE has no such limit), any string in an NFE request with a character the NF-e cannot carry (outside ISO-8859-1, latin1: an emoji, CJK, Cyrillic…; the error names the field — typographic quotes, dashes, ellipsis, bullet, `€` and `™` are not refused, the API converts them and folds tabs and line breaks into a space), a missing/incomplete `recipient_address` on NFE, or a missing/incomplete `recipient_address` (every field except `city_code`) on NFSE when any item has `tax_retained=True` (the ISSQN retained by the tomador).
 - `ValueError` — `correct()` with a key that is not an NF-e access key (44 characters): a correction letter exists only on NF-e; an NFS-e is cancelled and reissued instead. An NF-e key sent with `DocumentType.NFSE`, or one the API does not hold, is an `APIError` 409, not a `ValueError`.
 - `ValueError` — `stats()` with `days` outside 1–365, `classify()` with a `description` outside 3–500 characters or a `recipient_state` that is not two letters, `FiscalReference.cities()` with a `name` outside 2–100 characters, and `Webhooks.create()` with a URL that is not `https://`, a secret outside 16–255 characters or an event name not in `EVENTS`.
 - `pydantic.ValidationError` (a `ValueError`) — a model built with a value the NF-e 4.00 XSD refuses: an `ncm` that is not 8 digits (or `00` for a service line), a `barcode` that is not `SEM GTIN` or an 8/12/13/14-digit GTIN with a valid GS1 check digit, a `recopi_number` that is not 20 digits with valid check digits, or an `Address` `street`/`neighborhood` under 2 characters once trimmed.

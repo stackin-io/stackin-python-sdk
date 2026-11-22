@@ -395,6 +395,12 @@ class Invoice(_Client):
         a new recipient is saved as a client; `update_client=True`
         rewrites an existing one with this request's recipient data.
 
+        A line with `item_id` names a catalog item (see Items): it fills
+        whichever of the line's description, price, unit, barcode, ncm,
+        cfop, cest, tax and service fields are left out, and the ones the
+        line sends win. Its `description` is then optional, and the NF-e
+        ncm and cfop are left to the API, which checks the filled line.
+
         `contingency=True` sends an NF-e through the UF's contingency
         authorizer (SVC-AN/SVC-RS, tpEmis 6/7) for when its own is down.
         Left False, it is not sent.
@@ -415,11 +421,16 @@ class Invoice(_Client):
 
         if document_type is DocumentType.NFE:
             for index, item in enumerate(items):
-                if len(item.description) > _NFE_DESCRIPTION_MAX:
+                if (
+                    item.description is not None
+                    and len(item.description) > _NFE_DESCRIPTION_MAX
+                ):
                     raise ValueError(
                         f"items[{index}].description exceeds "
                         f"{_NFE_DESCRIPTION_MAX} characters (NF-e xProd limit)"
                     )
+                if item.item_id is not None:
+                    continue
                 if not item.ncm:
                     raise ValueError(f"items[{index}].ncm is required for NFE")
                 if not item.cfop:
