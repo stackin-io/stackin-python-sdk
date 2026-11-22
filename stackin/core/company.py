@@ -27,6 +27,7 @@ FISCAL_FIELDS = (
     "tax_regime",
     "simples_nacional",
     "simples_apuracao",
+    "simples_apuracao_ibs_cbs",
     "state_registration",
     "service_code",
 )
@@ -35,6 +36,7 @@ _ENUMS = {
     "tax_regime": ("1", "2", "3", "4"),
     "simples_nacional": ("1", "2", "3"),
     "simples_apuracao": ("1", "2", "3"),
+    "simples_apuracao_ibs_cbs": ("1", "3"),
 }
 
 
@@ -56,7 +58,9 @@ class Company(_Client):
         There is no complement, and the state changes only in the
         dashboard. `fiscal_fields` takes tax_regime (CRT 1-4),
         simples_nacional (1-3), simples_apuracao (1-3),
-        state_registration and service_code; they are the company
+        simples_apuracao_ibs_cbs (1 in the DAS, 3 outside it; only 3
+        lets an ME/EPP's NFS-e carry IBS/CBS), state_registration and
+        service_code; they are the company
         owner's alone, and anyone else gets an APIError 403.
 
         Only what is given is sent; a call with nothing changes nothing.

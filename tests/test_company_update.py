@@ -124,6 +124,9 @@ class UpdateTest(unittest.TestCase):
             "tax_regime": {"fiscal_fields": {"tax_regime": "5"}},
             "simples_nacional": {"fiscal_fields": {"simples_nacional": "4"}},
             "simples_apuracao": {"fiscal_fields": {"simples_apuracao": "0"}},
+            "simples_apuracao_ibs_cbs": {
+                "fiscal_fields": {"simples_apuracao_ibs_cbs": "2"}
+            },
         }
         for message, kwargs in cases.items():
             with self.subTest(message):
@@ -131,6 +134,20 @@ class UpdateTest(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         _company().update(**kwargs)
                     request.assert_not_called()
+
+    def test_simples_apuracao_ibs_cbs_is_sent(self):
+        for value in ("1", "3"):
+            with self.subTest(value=value):
+                (_, kwargs), _ = _sent(
+                    lambda c, v=value: c.update(
+                        fiscal_fields={"simples_apuracao_ibs_cbs": v}
+                    )
+                )
+
+                self.assertEqual(
+                    kwargs["json"],
+                    {"fiscal_fields": {"simples_apuracao_ibs_cbs": value}},
+                )
 
     def test_unknown_key_names_the_allowed_ones(self):
         with self.assertRaises(ValueError) as caught:
