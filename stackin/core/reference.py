@@ -8,7 +8,7 @@ reaches a classification published after this release without one.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Literal, cast
 from urllib.parse import quote
 
@@ -231,6 +231,8 @@ class FiscalReference(_Client):
             raise ValueError("items must hold 1 to 990 items")
         if isinstance(operation_date, str):
             operation_date = date.fromisoformat(operation_date)
+        elif isinstance(operation_date, datetime):
+            operation_date = operation_date.date()
 
         payload: dict[str, Any] = {
             "document_type": document_type,

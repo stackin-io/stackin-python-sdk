@@ -1,7 +1,7 @@
 """FiscalReference.calculate_ibs_cbs: the body it sends and the result it reads."""
 
 import unittest
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 from unittest.mock import patch
 
@@ -122,6 +122,16 @@ class CalculateTest(unittest.TestCase):
                 "rates": {"rate_state": 0.1, "rate_city": 0, "rate_federal": 0.9},
             },
         )
+
+    def test_a_datetime_is_sent_as_its_date(self):
+        (_, kwargs), _ = _sent(
+            lambda c: c.calculate_ibs_cbs(
+                [{"cst": "000", "classification": "000001", "amount": 1}],
+                operation_date=datetime(2026, 11, 22, 15, 30),
+            )
+        )
+
+        self.assertEqual(kwargs["json"]["operation_date"], "2026-11-22")
 
     def test_empty_rates_are_not_sent(self):
         (_, kwargs), _ = _sent(
