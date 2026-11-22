@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.23.0 — 2026-11-22
+
+### Features
+- **items:** ITEM_TAX_REGIME_MISMATCH error (stackin-api#642)
+- **items:** items catalog resource and item_id on issue (stackin-api#642)
+
+### Bug Fixes
+- **items:** ItemTaxRequiredError exposes index (stackin-api#642)
+- **items:** a line with item_id no longer sends the default unit and tax_retained (stackin-api#642)
+
+### Chores
+- **gitignore:** block certificate, key and .env files (stackin-io/devops#47)
+
 ## v0.22.0 — 2026-11-21
 
 ### Features
