@@ -349,6 +349,50 @@ class IssueWithClientTest(unittest.TestCase):
         )
         self.assertNotIn("update_client", body)
 
+    def test_contact_is_sent_when_given(self):
+        body = self.body(
+            document_type=DocumentType.NFE,
+            client_id=CLIENT_ID,
+            items=[_item()],
+            client_email="ana@example.com",
+            client_phone="+5521999998888",
+        )
+
+        self.assertEqual(body["client_email"], "ana@example.com")
+        self.assertEqual(body["client_phone"], "+5521999998888")
+
+    def test_contact_is_left_out_when_omitted(self):
+        body = self.body(
+            document_type=DocumentType.NFE, client_id=CLIENT_ID, items=[_item()]
+        )
+
+        self.assertNotIn("client_email", body)
+        self.assertNotIn("client_phone", body)
+
+    def test_only_the_contact_given_is_sent(self):
+        body = self.body(
+            document_type=DocumentType.NFE,
+            client_id=CLIENT_ID,
+            items=[_item()],
+            client_phone="21999998888",
+        )
+
+        self.assertNotIn("client_email", body)
+        self.assertEqual(body["client_phone"], "21999998888")
+
+    def test_contact_keeps_the_idempotency_key_out_of_the_body(self):
+        with patch.object(self.invoice, "_request", return_value={}) as sent:
+            self.invoice.issue(
+                document_type=DocumentType.NFE,
+                client_id=CLIENT_ID,
+                items=[_item()],
+                client_email="ana@example.com",
+                idempotency_key="idem-1",
+            )
+
+        self.assertEqual(sent.call_args.kwargs["idempotency_key"], "idem-1")
+        self.assertNotIn("idempotency_key", sent.call_args.kwargs["json"])
+
     def test_without_client_id_client_name_is_still_required(self):
         with self.assertRaises(ValueError):
             self.body(
