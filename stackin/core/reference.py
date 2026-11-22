@@ -7,10 +7,13 @@ reaches a classification published after this release without one.
 
 from __future__ import annotations
 
-from typing import Any, cast
+from collections.abc import Mapping, Sequence
+from datetime import date
+from typing import Any, Literal, cast
 from urllib.parse import quote
 
 from stackin.core.client import _Client
+from stackin.core.ibs_cbs import IbsCbsCalculation, IbsCbsCalculationItem, IbsCbsRates
 from stackin.core.types import Environment
 
 
@@ -201,3 +204,47 @@ class FiscalReference(_Client):
             params["state"] = state.upper()
 
         return cast(list[dict], self._request("GET", "/cities", params=params))
+
+    def calculate_ibs_cbs(
+        self,
+        items: Sequence[IbsCbsCalculationItem | Mapping[str, Any]],
+        *,
+        operation_date: date | str,
+        document_type: Literal["nfe", "nfce", "nfse"] = "nfe",
+        rates: IbsCbsRates | Mapping[str, Any] | None = None,
+        company: str | None = None,
+    ) -> IbsCbsCalculation:
+        """Simulates the NF-e IBS/CBS group of 1 to 990 items.
+
+        Nothing is issued, stored or sent to a tax authority, and the
+        result is not a fiscal document. `document_type` only picks the
+        model the cClassTrib is checked for: the amounts are always the
+        NF-e's, since an NFS-e's are computed by the Sefin Nacional.
+        `rates` apply to every item, and an item's own rate wins. With
+        no rates and an `operation_date` in 2026 the official 2026
+        rates apply; outside 2026 they are required, or the API answers
+        APIError 422 IBS_CBS_RATES_REQUIRED.
+        """
+        if document_type not in ("nfe", "nfce", "nfse"):
+            raise ValueError("document_type must be nfe, nfce or nfse")
+        if not 1 <= len(items) <= 990:
+            raise ValueError("items must hold 1 to 990 items")
+        if isinstance(operation_date, str):
+            operation_date = date.fromisoformat(operation_date)
+
+        payload: dict[str, Any] = {
+            "document_type": document_type,
+            "operation_date": operation_date.isoformat(),
+            "items": [
+                IbsCbsCalculationItem.model_validate(item).model_dump(exclude_none=True)
+                for item in items
+            ],
+        }
+        if rates is not None:
+            given = IbsCbsRates.model_validate(rates).model_dump(exclude_none=True)
+            if given:
+                payload["rates"] = given
+
+        return IbsCbsCalculation.model_validate(
+            self._request("POST", "/ibs-cbs/calculate", json=payload, company=company)
+        )

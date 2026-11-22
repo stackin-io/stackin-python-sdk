@@ -28,6 +28,15 @@ from .core.exceptions import (
     PaymentRequiredError,
     RateLimitedError,
 )
+from .core.ibs_cbs import (
+    IbsCbsAmounts,
+    IbsCbsAppliedRates,
+    IbsCbsCalculatedItem,
+    IbsCbsCalculation,
+    IbsCbsCalculationItem,
+    IbsCbsIndicators,
+    IbsCbsRates,
+)
 from .core.items import CatalogItem, Items, ItemSaved
 from .core.reference import KINDS, FiscalReference, Kind
 from .core.taxpayer import Taxpayer
@@ -46,6 +55,13 @@ __all__ = [
     "EVENTS",
     "FiscalReference",
     "Kind",
+    "IbsCbsRates",
+    "IbsCbsCalculationItem",
+    "IbsCbsCalculation",
+    "IbsCbsCalculatedItem",
+    "IbsCbsIndicators",
+    "IbsCbsAppliedRates",
+    "IbsCbsAmounts",
     "KINDS",
     "Taxpayer",
     "DocumentType",
