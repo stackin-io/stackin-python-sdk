@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 
+import re
 from decimal import Decimal
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_serializer, model_validator
 
-Presence = Literal["0", "1", "2", "3", "5", "9"]
+Presence = Literal["0", "1", "2", "3", "4", "5", "9"]
 FreightMode = Literal["0", "1", "2", "3", "4", "9"]
-CardIntegration = Literal["1", "2"]
 
-PRESENCES = ("0", "1", "2", "3", "5", "9")
+PRESENCES = ("0", "1", "2", "3", "4", "5", "9")
 FREIGHT_MODES = ("0", "1", "2", "3", "4", "9")
-PAYMENT_METHODS = frozenset(
-    "01 02 03 04 05 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 90 91 99".split()
-)
+PAYMENT_METHOD_PATTERN = re.compile(r"\d{2}")
 PAYMENTS_MAX = 100
 
 
@@ -76,7 +74,7 @@ class Transport(BaseModel):
 class PaymentCard(BaseModel):
     """`card`: the electronic payment's processor and authorization."""
 
-    integration: CardIntegration
+    integration: str
     tax_id: str | None = None
     brand: str | None = None
     authorization: str | None = None
@@ -92,16 +90,14 @@ class Payment(BaseModel):
     """
 
     method: str
-    amount: Decimal = Field(decimal_places=2)
+    amount: Decimal = Field(ge=0, decimal_places=2)
     description: str | None = None
     card: PaymentCard | None = None
 
     @model_validator(mode="after")
     def _rules(self) -> Payment:
-        if self.method not in PAYMENT_METHODS:
-            raise ValueError(
-                f"method {self.method!r} is not in the national payment method table"
-            )
+        if not PAYMENT_METHOD_PATTERN.fullmatch(self.method):
+            raise ValueError(f"method {self.method!r} is not a 2-digit tPag code")
         if self.method == "99" and self.description is None:
             raise ValueError("description is required for method 99")
         return self
@@ -140,6 +136,8 @@ def validate_presence(presence: str) -> str:
 
 
 def _check_change(change: Decimal) -> Decimal:
+    if change < 0:
+        raise ValueError("change must be 0 or more")
     if change != change.quantize(Decimal("0.01")):
         raise ValueError("change takes at most 2 decimal places")
     return change

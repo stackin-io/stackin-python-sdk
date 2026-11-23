@@ -10,7 +10,6 @@ guess made here.
 from __future__ import annotations
 
 from dataclasses import dataclass
-import re
 from decimal import Decimal
 from typing import Any, TypedDict, cast
 
@@ -101,13 +100,6 @@ def _check_weight(name: str, value: Decimal | float | int | str | None) -> None:
         raise ValueError(f"{name} must be 0 or more")
     if weight != weight.quantize(Decimal("0.000001")):
         raise ValueError(f"{name} takes at most 6 decimal places")
-
-
-def _check_ibs_cbs(cst: str | None, classification: str | None) -> None:
-    if cst is not None and not re.fullmatch(r"\d{3}", cst):
-        raise ValueError("ibs_cbs_cst must be 3 digits")
-    if classification is not None and not re.fullmatch(r"\d{6}", classification):
-        raise ValueError("ibs_cbs_class must be 6 digits")
 
 
 class Items(_Client):
@@ -286,7 +278,6 @@ class Items(_Client):
         }
         _check_weight("net_weight", net_weight)
         _check_weight("gross_weight", gross_weight)
-        _check_ibs_cbs(ibs_cbs_cst, ibs_cbs_class)
         payload = {
             key: values[key] for key in _UPSERT_FIELDS if values[key] is not None
         }
@@ -364,12 +355,6 @@ class Items(_Client):
             if isinstance(fields[key], _Unset):
                 continue
             _check_weight(key, fields[key])
-        if not isinstance(ibs_cbs_cst, _Unset) or not isinstance(ibs_cbs_class, _Unset):
-            _check_ibs_cbs(
-                None if isinstance(ibs_cbs_cst, _Unset) else ibs_cbs_cst,
-                None if isinstance(ibs_cbs_class, _Unset) else ibs_cbs_class,
-            )
-
         return cast(
             CatalogItem,
             self._request(
