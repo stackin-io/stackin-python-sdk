@@ -19,6 +19,8 @@ EVENTS = (
     "invoice.rejected",
     "invoice.cancelled",
     "invoice.corrected",
+    "received_invoice.stored",
+    "received_invoice.full_document",
 )
 
 _SECRET_MIN = 16

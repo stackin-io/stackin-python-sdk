@@ -12,11 +12,25 @@ class InvoiceError(Exception):
 
 
 class APIError(InvoiceError):
-    """Raised when the invoice API responds with an error status."""
+    """Raised when the invoice API responds with an error status.
+
+    `code`, `field`, `retryable`, `document_id` and `sefaz_rejection` are
+    read from the response when it carries them and None otherwise.
+    `expected` and `received` come with a pre-SEFAZ rule, `body` is the
+    whole JSON answer.
+    """
 
     def __init__(self, status_code: int, detail: Any) -> None:
         self.status_code = status_code
         self.detail = detail
+        self.code: str | None = None
+        self.field: str | None = None
+        self.retryable: bool | None = None
+        self.document_id: str | None = None
+        self.sefaz_rejection: str | None = None
+        self.expected: Any = None
+        self.received: Any = None
+        self.body: Any = None
         super().__init__(f"[{status_code}] {detail}")
 
 
@@ -237,6 +251,40 @@ def _rate_limited(
     )
 
 
+def _text(value: Any) -> str | None:
+    return str(value) if value is not None and value != "" else None
+
+
+def _fill(error: APIError, body: Any) -> APIError:
+    fields = body if isinstance(body, dict) else {}
+    detail = error.detail if isinstance(error.detail, dict) else {}
+    block = fields.get("error")
+    if not isinstance(block, dict):
+        block = {}
+    error.body = body
+    code = (
+        _text(block.get("code"))
+        or _text(detail.get("code"))
+        or _text(fields.get("code"))
+    )
+    if code is not None:
+        error.code = code
+    if (field := _text(detail.get("field"))) is not None:
+        error.field = field
+    if isinstance(block.get("retryable"), bool):
+        error.retryable = block["retryable"]
+    if (document_id := _text(block.get("document_id"))) is not None:
+        error.document_id = document_id
+    if (rejection := _text(detail.get("sefaz_rejection"))) is not None:
+        error.sefaz_rejection = rejection
+    error.expected = detail.get("expected")
+    error.received = detail.get("received")
+    message = detail.get("message")
+    if isinstance(message, str) and "code" in detail:
+        error.args = (f"[{error.status_code}] {message}",)
+    return error
+
+
 def _api_error(
     status_code: int,
     detail: Any,
@@ -248,6 +296,15 @@ def _api_error(
     `body` is the whole JSON answer and `headers` the response's, for
     what a 429 carries beside `detail`.
     """
+    return _fill(_typed_error(status_code, detail, body, headers), body)
+
+
+def _typed_error(
+    status_code: int,
+    detail: Any,
+    body: Any,
+    headers: Mapping[str, str] | None,
+) -> APIError:
     if status_code == 402:
         return PaymentRequiredError(status_code, detail)
     if status_code == 429:

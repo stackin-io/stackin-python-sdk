@@ -383,6 +383,43 @@ what the CNPJ registry suggests (never applied). `rejection()` reads the authori
 is one, a suggested value; a document that is not rejected is an `APIError` 409.
 `stats()` takes `days` from 1 to 365 (the API's default 30), checked locally.
 
+## Dry run: `validate`
+
+```python
+result = invoice.validate(document_type=DocumentType.NFE, ...)   # same arguments as issue()
+if not result.valid:
+    for finding in result.errors:
+        print(finding.code, finding.field, finding.message, finding.sefaz_rejection)
+for warning in result.warnings:
+    print(warning.code, warning.message)
+```
+
+`validate()` runs the rules `issue()` would without transmitting, taking a number or
+charging, and takes `issue()`'s arguments but `idempotency_key`. A document the rules
+refuse is a `ValidationResult` with `valid=False`, not an exception; `errors` and
+`warnings` are lists of `Finding` (`code`, `message`, `field`, `sefaz_rejection`,
+`expected`, `received`, `fix_url`). A malformed request, an unknown client, a 401 or a
+429 still raise `APIError`.
+
+## An NFS-e whose answer never came, and received XML
+
+```python
+try:
+    invoice.issue(document_type=DocumentType.NFSE, ...)
+except APIError as error:
+    if error.code == "OUTCOME_UNKNOWN":
+        note = invoice.consult_by_dps(error.document_id)    # GET /invoices/dps/{dps_id}
+
+xml = invoice.received_xml(access_key)    # bytes, the received document's procNFe
+```
+
+`consult_by_dps()` returns what `consult()` does and may carry status `cancelled`; an id
+that is not the company's is an `APIError` 400 and a note the authority does not have
+(nothing was issued) a 404. `received_xml()` returns the XML as raw bytes: a document
+held only as a summary is an `APIError` 409 with `code == "RECEIVED_XML_NOT_AVAILABLE"`
+(manifest it first), and an account with nothing left to pay for it a
+`PaymentRequiredError` with `code == "RECEIVED_PAYMENT_REQUIRED"`.
+
 ## Fix the issuer: `Company.update`
 
 ```python
@@ -620,7 +657,9 @@ Invoice(api_key="...").issue(
 ## Webhooks
 
 `Webhooks` registers where the company's events are delivered: `invoice.authorized`,
-`invoice.rejected`, `invoice.cancelled` and `invoice.corrected` (`stackin.EVENTS`).
+`invoice.rejected`, `invoice.cancelled`, `invoice.corrected`, `received_invoice.stored`
+(a received document was stored) and `received_invoice.full_document` (its full XML
+arrived) (`stackin.EVENTS`).
 An endpoint receives the events of the credential's own environment only.
 
 ```python
@@ -732,7 +771,7 @@ the API ignores it there.
 
 ## Errors
 
-- `stackin.APIError` — the API responded with a non-2xx status (`status_code`, `detail`) — a 401 here means `api_key` is missing, wrong, or was rotated.
+- `stackin.APIError` — the API responded with a non-2xx status (`status_code`, `detail`, and, when the response carries them, `code`, `field`, `retryable`, `document_id`, `sefaz_rejection`, `expected`, `received`, each None otherwise) — a 401 here means `api_key` is missing, wrong, or was rotated.
 - `stackin.CompanyRequiredError` (an `APIError`, 422) — the credential covers several companies and none was named. `companies` lists them.
 - `stackin.CompanyNotInScopeError` (an `APIError`, 403) — the named company is not one the credential covers. `companies` lists the ones it does.
 - `stackin.InsufficientPermissionError` (an `APIError`, 403) — the credential reaches the company but lacks the permission; `description` reads `needs X, has Y, company=<id>`. None of the three is worth retrying as is.
