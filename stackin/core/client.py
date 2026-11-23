@@ -430,14 +430,6 @@ def _issue_payload(
         payments=payments,
         change=change,
     )
-    if terms and document_type is not DocumentType.NFE:
-        raise ValueError(f"{', '.join(terms)} only apply to an NF-e")
-    if document_type is not DocumentType.NFE:
-        for index, item in enumerate(items):
-            if item.net_weight is not None or item.gross_weight is not None:
-                raise ValueError(
-                    f"items[{index}].net_weight and gross_weight only apply to an NF-e"
-                )
     payload.update(terms)
     if document_type is DocumentType.NFE:
         _validate_nfe_latin1(payload)

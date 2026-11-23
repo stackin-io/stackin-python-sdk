@@ -203,7 +203,7 @@ class Items(_Client):
         fiscal fields apply: ncm, cfop, tax_situation, origin, cest and
         gtin for a product, service_code and iss_retained for a service.
         `net_weight` and `gross_weight` (kg per unit) are product-only and fill the issuance line's weights;
-        `ibs_cbs_cst` and `ibs_cbs_class` go together and fill its IBS/CBS
+        `ibs_cbs_cst` and `ibs_cbs_class` fill its IBS/CBS
         group. `source` (manual by default) is kept only when the item is
         new. Each field left as None is left out of the body.
         """
@@ -285,8 +285,6 @@ class Items(_Client):
         _check_weight("net_weight", net_weight)
         _check_weight("gross_weight", gross_weight)
         _check_ibs_cbs(ibs_cbs_cst, ibs_cbs_class)
-        if (ibs_cbs_cst is None) != (ibs_cbs_class is None):
-            raise ValueError("ibs_cbs_cst and ibs_cbs_class go together")
         payload = {
             key: values[key] for key in _UPSERT_FIELDS if values[key] is not None
         }

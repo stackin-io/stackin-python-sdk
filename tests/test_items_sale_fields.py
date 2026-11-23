@@ -74,10 +74,6 @@ class CreateTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "gross_weight"):
             _items().create(kind="product", description="x", gross_weight=-1)
 
-    def test_cst_and_class_go_together(self):
-        with self.assertRaisesRegex(ValueError, "go together"):
-            _items().create(kind="product", description="x", ibs_cbs_cst="000")
-
     def test_cst_and_class_shapes(self):
         with self.assertRaisesRegex(ValueError, "ibs_cbs_cst"):
             _items().create(

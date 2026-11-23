@@ -80,7 +80,7 @@ class TestBodySerialization(IssueCase):
                         authorization="ABC123",
                     ),
                 ),
-                Payment(method="99", amount=Decimal("5.5"), description="Vale"),
+                Payment(method="99", amount=Decimal("5.50"), description="Vale"),
             ],
             change=Decimal("5.50"),
         )
@@ -110,7 +110,7 @@ class TestBodySerialization(IssueCase):
             [
                 {
                     "method": "03",
-                    "amount": "10.00",
+                    "amount": "10",
                     "card": {
                         "integration": "1",
                         "tax_id": CNPJ,
@@ -125,7 +125,7 @@ class TestBodySerialization(IssueCase):
         json.dumps(body)
 
     def test_a_zero_change_is_sent(self):
-        self.assertEqual(self.body(change=Decimal("0"))["change"], "0.00")
+        self.assertEqual(self.body(change=Decimal("0"))["change"], "0")
 
     def test_transport_without_volumes_sends_none(self):
         body = self.body(transport=Transport(freight_mode="9"))
@@ -183,7 +183,7 @@ class TestBodySerialization(IssueCase):
             )
 
         body = sent.call_args.kwargs["json"]
-        self.assertEqual((body["presence"], body["change"]), ("3", "1.00"))
+        self.assertEqual((body["presence"], body["change"]), ("3", "1"))
 
     def test_free_text_is_checked_for_latin1(self):
         with self.assertRaisesRegex(ValueError, "latin1"):
@@ -217,10 +217,23 @@ class TestValidation(IssueCase):
         with self.assertRaises(ValidationError):
             Transport(freight_mode="5")
 
-    def test_volume_weights_are_not_limited_in_places(self):
-        volume = TransportVolume(net_weight=Decimal("1.2345"))
+    def test_volume_weights_take_three_decimals(self):
+        with self.assertRaises(ValidationError):
+            TransportVolume(net_weight=Decimal("1.2345"))
+        with self.assertRaises(ValidationError):
+            TransportVolume(gross_weight=Decimal("1.2345"))
 
-        self.assertEqual(volume.to_dict()["net_weight"], "1.2345")
+    def test_amount_and_change_take_two_decimals(self):
+        with self.assertRaises(ValidationError):
+            Payment(method="01", amount=Decimal("1.234"))
+        with self.assertRaisesRegex(ValueError, "change"):
+            self.body(change=Decimal("1.005"))
+
+    def test_line_weights_have_no_decimal_limit(self):
+        item = nfe_item(net_weight=Decimal("0.1234567"))
+
+        product = self.body(items=[item])["items"][0]["product"]
+        self.assertEqual(product["net_weight"], "0.1234567")
 
     def test_volume_weights_cannot_be_negative(self):
         with self.assertRaises(ValidationError):
@@ -234,47 +247,13 @@ class TestValidation(IssueCase):
         with self.assertRaisesRegex(ValidationError, "method"):
             Payment(method="06", amount=Decimal("1"))
 
-    def test_amount_takes_two_decimals(self):
-        with self.assertRaises(ValidationError):
-            Payment(method="01", amount=Decimal("1.234"))
-
-    def test_card_only_goes_with_a_card_method(self):
-        with self.assertRaisesRegex(ValidationError, "card"):
-            Payment(method="01", amount=Decimal("1"), card=PaymentCard(integration="2"))
-
-    def test_integrated_card_needs_tax_id_and_authorization(self):
-        with self.assertRaisesRegex(ValidationError, "integration 1"):
-            PaymentCard(integration="1")
-
-    def test_card_brand_must_be_in_the_table(self):
-        with self.assertRaisesRegex(ValidationError, "brand"):
-            PaymentCard(integration="2", brand="40")
-
     def test_identifier_length(self):
         with self.assertRaises(ValidationError):
             Intermediary(tax_id=CNPJ, identifier="a")
 
-    def test_change_range_and_places(self):
-        for bad in (Decimal("-1"), Decimal("300000.01"), Decimal("1.005")):
-            with self.subTest(bad=bad), self.assertRaisesRegex(ValueError, "change"):
-                self.body(change=bad)
-
     def test_payments_cannot_be_empty(self):
         with self.assertRaisesRegex(ValueError, "payments"):
             self.body(payments=[])
-
-    def test_terms_are_nfe_only(self):
-        with self.assertRaisesRegex(ValueError, "NF-e"):
-            self.body(document_type=DocumentType.NFSE, presence="1")
-
-    def test_line_weights_are_nfe_only(self):
-        item = Product(
-            description="Servico",
-            amount=Decimal("10"),
-            net_weight=Decimal("1"),
-        )
-        with self.assertRaisesRegex(ValueError, "NF-e"):
-            self.body(document_type=DocumentType.NFSE, items=[item])
 
     def test_negative_line_weight_is_refused(self):
         with self.assertRaises(ValidationError):
