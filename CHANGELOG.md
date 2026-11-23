@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.26.0 — 2026-11-22
+
+### Features
+- error fields, received_xml, consult_by_dps, validate and received events (#55)
+
 ## v0.25.0 — 2026-11-22
 
 ### Features
