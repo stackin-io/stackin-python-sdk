@@ -251,7 +251,7 @@ Product(description="Consultoria", unit_price=Decimal("1000.00"), ibs_cbs=IbsCbs
 
 ### Sale terms (NF-e)
 
-`issue()` and `validate()` take `presence` (`"0"`, `"1"`, `"2"`, `"3"`, `"5"` or `"9"`), `intermediary`, `transport`, `payments` (1 to 100) and `change`; each is left out of the body when unset, and a `Product` takes `net_weight` and `gross_weight` (kg per unit). `reissue()` reuses the terms stored on the invoice. The SDK checks the code sets and that method `"99"` carries a `description`; the rest is the API's:
+`issue()` and `validate()` take `presence` (`"0"`, `"1"`, `"2"`, `"3"`, `"5"` or `"9"`), `intermediary`, `transport`, `payments` (1 to 100) and `change`; each is left out of the body when unset, and a `Product` takes `net_weight` and `gross_weight` (kg per unit). `reissue()` reuses the terms stored on the invoice. The SDK checks only the code sets and that method `"99"` carries a `description`; every other rule is the API's, answered as an `APIError`:
 
 ```python
 from decimal import Decimal
@@ -267,7 +267,7 @@ client.issue(
 SaleTerms.from_invoice(invoice)
 ```
 
-`SaleTerms.from_invoice()` reads the five stored fields from an invoice detail, each `None` when absent. `Items.create()`, `upsert()` and `update()` take `net_weight`, `gross_weight`, `ibs_cbs_cst` and `ibs_cbs_class` (the last two together).
+`SaleTerms.from_invoice()` reads the five stored fields from an invoice detail, each `None` when absent. `Items.create()`, `upsert()` and `update()` take `net_weight`, `gross_weight`, `ibs_cbs_cst` and `ibs_cbs_class`.
 
 ## Retrying safely
 

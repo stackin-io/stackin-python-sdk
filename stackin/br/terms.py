@@ -16,16 +16,11 @@ FREIGHT_MODES = ("0", "1", "2", "3", "4", "9")
 PAYMENT_METHODS = frozenset(
     "01 02 03 04 05 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 90 91 99".split()
 )
-CARD_METHODS = frozenset({"03", "04", "10", "11", "12", "13", "15", "17", "18"})
-CARD_BRANDS = frozenset([f"{code:02d}" for code in range(1, 28)] + ["99"])
-CHANGE_MAX = Decimal("300000.00")
 PAYMENTS_MAX = 100
-
-_MONEY_MAX = Decimal("9999999999999.99")
 
 
 def _money(value: Decimal) -> str:
-    return f"{value:.2f}"
+    return format(value, "f")
 
 
 class Intermediary(BaseModel):
@@ -45,12 +40,12 @@ class Intermediary(BaseModel):
 class TransportVolume(BaseModel):
     """One `transp/vol` group: packages carried and their weight in kg."""
 
-    quantity: int | None = Field(default=None, ge=0, lt=10**15)
-    species: str | None = Field(default=None, min_length=1, max_length=60)
-    brand: str | None = Field(default=None, min_length=1, max_length=60)
-    numbering: str | None = Field(default=None, min_length=1, max_length=60)
-    net_weight: Decimal | None = Field(default=None, ge=0)
-    gross_weight: Decimal | None = Field(default=None, ge=0)
+    quantity: int | None = None
+    species: str | None = None
+    brand: str | None = None
+    numbering: str | None = None
+    net_weight: Decimal | None = Field(default=None, ge=0, decimal_places=3)
+    gross_weight: Decimal | None = Field(default=None, ge=0, decimal_places=3)
 
     @field_serializer("net_weight", "gross_weight")
     def _weight(self, value: Decimal | None) -> str | None:
@@ -69,7 +64,7 @@ class Transport(BaseModel):
     """
 
     freight_mode: FreightMode
-    volumes: list[TransportVolume] | None = Field(default=None, max_length=5000)
+    volumes: list[TransportVolume] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         data: dict[str, Any] = {"freight_mode": self.freight_mode}
@@ -82,17 +77,9 @@ class PaymentCard(BaseModel):
     """`card`: the electronic payment's processor and authorization."""
 
     integration: CardIntegration
-    tax_id: str | None = Field(default=None)
-    brand: str | None = Field(default=None)
-    authorization: str | None = Field(default=None, min_length=1, max_length=128)
-
-    @model_validator(mode="after")
-    def _rules(self) -> PaymentCard:
-        if self.brand is not None and self.brand not in CARD_BRANDS:
-            raise ValueError(f"brand {self.brand!r} is not in the card brand table")
-        if self.integration == "1" and not (self.tax_id and self.authorization):
-            raise ValueError("integration 1 requires tax_id and authorization")
-        return self
+    tax_id: str | None = None
+    brand: str | None = None
+    authorization: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump(exclude_none=True)
@@ -102,17 +89,12 @@ class Payment(BaseModel):
     """One `detPag`: how much was paid and how.
 
     `method` is the national tPag code; 99 (other) needs `description`.
-    `card` goes only with the card and instant-payment methods.
     """
 
     method: str
-    amount: Decimal = Field(ge=0, le=_MONEY_MAX, decimal_places=2)
-    description: str | None = Field(default=None, min_length=2, max_length=60)
-    card: PaymentCard | None = Field(default=None)
-
-    @field_serializer("amount")
-    def _amount(self, value: Decimal) -> str:
-        return _money(value)
+    amount: Decimal = Field(decimal_places=2)
+    description: str | None = None
+    card: PaymentCard | None = None
 
     @model_validator(mode="after")
     def _rules(self) -> Payment:
@@ -122,8 +104,6 @@ class Payment(BaseModel):
             )
         if self.method == "99" and self.description is None:
             raise ValueError("description is required for method 99")
-        if self.card is not None and self.method not in CARD_METHODS:
-            raise ValueError(f"card does not go with method {self.method}")
         return self
 
     def to_dict(self) -> dict[str, Any]:
@@ -159,9 +139,7 @@ def validate_presence(presence: str) -> str:
     return presence
 
 
-def validate_change(change: Decimal) -> Decimal:
-    if change < 0 or change > CHANGE_MAX:
-        raise ValueError(f"change must be between 0 and {CHANGE_MAX}")
+def _check_change(change: Decimal) -> Decimal:
     if change != change.quantize(Decimal("0.01")):
         raise ValueError("change takes at most 2 decimal places")
     return change
@@ -187,5 +165,5 @@ def terms_payload(
             raise ValueError(f"payments takes 1 to {PAYMENTS_MAX} entries")
         body["payments"] = [payment.to_dict() for payment in payments]
     if change is not None:
-        body["change"] = _money(validate_change(Decimal(change)))
+        body["change"] = _money(_check_change(Decimal(change)))
     return body
