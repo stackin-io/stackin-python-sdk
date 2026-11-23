@@ -14,7 +14,7 @@ import requests
 from stackin.br.export import Export
 from stackin.br.product import Product
 from stackin.core.address import Address
-from stackin.core.exceptions import ConnectionFailedError, _api_error
+from stackin.core.exceptions import APIError, ConnectionFailedError, _api_error
 from stackin.core.types import (
     Direction,
     DocumentType,
@@ -23,6 +23,7 @@ from stackin.core.types import (
     Purpose,
 )
 from stackin.core.usage import ReceivedSync, Usage
+from stackin.core.validation import ValidationResult
 
 DEFAULT_BASE_URL = "https://sdk.stackin.io"
 
@@ -340,6 +341,109 @@ class _Client:
         return response
 
 
+def _issue_payload(
+    *,
+    document_type: DocumentType,
+    client_name: str | None,
+    tax_id: str | None,
+    items: list[Product],
+    recipient_address: Address | None,
+    series: str | None,
+    number: str | None,
+    external_reference: str | None,
+    discount: Decimal | None,
+    issued_at: datetime | None,
+    purpose: Purpose | None,
+    direction: Direction | None,
+    referenced_keys: list[str] | None,
+    foreign_id: str | None,
+    export: Export | None,
+    client_id: str | None,
+    update_client: bool,
+    client_email: str | None,
+    client_phone: str | None,
+    contingency: bool,
+) -> dict[str, Any]:
+    if not items:
+        raise ValueError("items can't be empty")
+
+    from_client = client_id is not None
+    if client_name is None and not from_client:
+        raise ValueError("client_name is required unless client_id is given")
+
+    abroad = document_type is DocumentType.NFE and _is_abroad(recipient_address)
+    if tax_id is None and not abroad and not from_client:
+        raise ValueError(
+            "tax_id is required, except on an NF-e to a buyer abroad "
+            "(recipient_address.state EX)"
+        )
+
+    if document_type is DocumentType.NFE:
+        for index, item in enumerate(items):
+            if (
+                item.description is not None
+                and len(item.description) > _NFE_DESCRIPTION_MAX
+            ):
+                raise ValueError(
+                    f"items[{index}].description exceeds "
+                    f"{_NFE_DESCRIPTION_MAX} characters (NF-e xProd limit)"
+                )
+            if item.item_id is not None:
+                continue
+            if not item.ncm:
+                raise ValueError(f"items[{index}].ncm is required for NFE")
+            if not item.cfop:
+                raise ValueError(f"items[{index}].cfop is required for NFE")
+        if recipient_address is not None or not from_client:
+            _validate_nfe_address(recipient_address)
+    retained = any(item.tax_retained for item in items)
+    if document_type is DocumentType.NFSE and retained:
+        if recipient_address is not None or not from_client:
+            _validate_nfse_retained_address(recipient_address)
+
+    payload: dict[str, Any] = {"document_type": document_type.value}
+    if client_id is not None:
+        payload["client_id"] = client_id
+    if client_name is not None:
+        payload["client_name"] = client_name
+    if tax_id is not None:
+        payload["tax_id"] = tax_id
+    payload["items"] = [item.to_dict() for item in items]
+    if recipient_address:
+        payload["recipient_address"] = recipient_address.to_dict()
+    if series:
+        payload["series"] = series
+    if number:
+        payload["number"] = number
+    if export is not None:
+        payload["export"] = export.to_dict()
+    if document_type is DocumentType.NFE:
+        _validate_nfe_latin1(payload)
+    if external_reference:
+        payload["external_reference"] = external_reference
+    if discount is not None:
+        payload["discount"] = _discount_str(discount)
+    if issued_at is not None:
+        payload["issued_at"] = _issued_at_str(issued_at)
+    if purpose is not None:
+        payload["purpose"] = Purpose(purpose).value
+    if direction is not None:
+        payload["direction"] = Direction(direction).value
+    if referenced_keys is not None:
+        payload["referenced_keys"] = _referenced_keys_list(referenced_keys)
+    if foreign_id is not None:
+        payload["foreign_id"] = foreign_id
+    if update_client:
+        payload["update_client"] = True
+    if client_email is not None:
+        payload["client_email"] = client_email
+    if client_phone is not None:
+        payload["client_phone"] = client_phone
+    if contingency:
+        payload["contingency"] = True
+    return payload
+
+
 class Invoice(_Client):
     """Client for issuing, consulting, and cancelling fiscal documents.
 
@@ -425,83 +529,28 @@ class Invoice(_Client):
         authorizer (SVC-AN/SVC-RS, tpEmis 6/7) for when its own is down.
         Left False, it is not sent.
         """
-        if not items:
-            raise ValueError("items can't be empty")
-
-        from_client = client_id is not None
-        if client_name is None and not from_client:
-            raise ValueError("client_name is required unless client_id is given")
-
-        abroad = document_type is DocumentType.NFE and _is_abroad(recipient_address)
-        if tax_id is None and not abroad and not from_client:
-            raise ValueError(
-                "tax_id is required, except on an NF-e to a buyer abroad "
-                "(recipient_address.state EX)"
-            )
-
-        if document_type is DocumentType.NFE:
-            for index, item in enumerate(items):
-                if (
-                    item.description is not None
-                    and len(item.description) > _NFE_DESCRIPTION_MAX
-                ):
-                    raise ValueError(
-                        f"items[{index}].description exceeds "
-                        f"{_NFE_DESCRIPTION_MAX} characters (NF-e xProd limit)"
-                    )
-                if item.item_id is not None:
-                    continue
-                if not item.ncm:
-                    raise ValueError(f"items[{index}].ncm is required for NFE")
-                if not item.cfop:
-                    raise ValueError(f"items[{index}].cfop is required for NFE")
-            if recipient_address is not None or not from_client:
-                _validate_nfe_address(recipient_address)
-        retained = any(item.tax_retained for item in items)
-        if document_type is DocumentType.NFSE and retained:
-            if recipient_address is not None or not from_client:
-                _validate_nfse_retained_address(recipient_address)
-
-        payload: dict[str, Any] = {"document_type": document_type.value}
-        if client_id is not None:
-            payload["client_id"] = client_id
-        if client_name is not None:
-            payload["client_name"] = client_name
-        if tax_id is not None:
-            payload["tax_id"] = tax_id
-        payload["items"] = [item.to_dict() for item in items]
-        if recipient_address:
-            payload["recipient_address"] = recipient_address.to_dict()
-        if series:
-            payload["series"] = series
-        if number:
-            payload["number"] = number
-        if export is not None:
-            payload["export"] = export.to_dict()
-        if document_type is DocumentType.NFE:
-            _validate_nfe_latin1(payload)
-        if external_reference:
-            payload["external_reference"] = external_reference
-        if discount is not None:
-            payload["discount"] = _discount_str(discount)
-        if issued_at is not None:
-            payload["issued_at"] = _issued_at_str(issued_at)
-        if purpose is not None:
-            payload["purpose"] = Purpose(purpose).value
-        if direction is not None:
-            payload["direction"] = Direction(direction).value
-        if referenced_keys is not None:
-            payload["referenced_keys"] = _referenced_keys_list(referenced_keys)
-        if foreign_id is not None:
-            payload["foreign_id"] = foreign_id
-        if update_client:
-            payload["update_client"] = True
-        if client_email is not None:
-            payload["client_email"] = client_email
-        if client_phone is not None:
-            payload["client_phone"] = client_phone
-        if contingency:
-            payload["contingency"] = True
+        payload = _issue_payload(
+            document_type=document_type,
+            client_name=client_name,
+            tax_id=tax_id,
+            items=items,
+            recipient_address=recipient_address,
+            series=series,
+            number=number,
+            external_reference=external_reference,
+            discount=discount,
+            issued_at=issued_at,
+            purpose=purpose,
+            direction=direction,
+            referenced_keys=referenced_keys,
+            foreign_id=foreign_id,
+            export=export,
+            client_id=client_id,
+            update_client=update_client,
+            client_email=client_email,
+            client_phone=client_phone,
+            contingency=contingency,
+        )
 
         return cast(
             dict,
@@ -533,6 +582,118 @@ class Invoice(_Client):
                 company=company,
             ),
         )
+
+    def consult_by_dps(
+        self,
+        dps_id: str,
+        *,
+        company: str | None = None,
+    ) -> dict:
+        """Consults an NFS-e by the id of its DPS.
+
+        For a note whose issuance never answered: the `document_id` of
+        an OUTCOME_UNKNOWN APIError is that id. The result is the one
+        consult() gives and may carry status `cancelled`. An id that is
+        not this company's is an APIError 400, and one the authority has
+        no note for (nothing was issued) a 404.
+        """
+        return cast(
+            dict,
+            self._request(
+                "GET",
+                f"/invoices/dps/{_invoice_segment(dps_id)}",
+                company=company,
+            ),
+        )
+
+    def received_xml(
+        self,
+        access_key: str,
+        *,
+        company: str | None = None,
+    ) -> bytes:
+        """The XML (procNFe) of a received document, as raw bytes.
+
+        Only a document whose full XML is stored has one: a summary is an
+        APIError 409 with code RECEIVED_XML_NOT_AVAILABLE, answered by
+        manifesting it, and an account with nothing left to pay for it a
+        402 (PaymentRequiredError, code RECEIVED_PAYMENT_REQUIRED).
+        """
+        response = self._send(
+            "GET",
+            f"/received-invoices/{_invoice_segment(access_key)}/xml",
+            company=company,
+        )
+        return response.content
+
+    def validate(
+        self,
+        *,
+        document_type: DocumentType,
+        client_name: str | None = None,
+        tax_id: str | None = None,
+        items: list[Product],
+        recipient_address: Address | None = None,
+        series: str | None = None,
+        number: str | None = None,
+        external_reference: str | None = None,
+        discount: Decimal | None = None,
+        issued_at: datetime | None = None,
+        purpose: Purpose | None = None,
+        direction: Direction | None = None,
+        referenced_keys: list[str] | None = None,
+        foreign_id: str | None = None,
+        export: Export | None = None,
+        company: str | None = None,
+        client_id: str | None = None,
+        update_client: bool = False,
+        client_email: str | None = None,
+        client_phone: str | None = None,
+        contingency: bool = False,
+    ) -> ValidationResult:
+        """Dry run of issue(): the same arguments, nothing sent.
+
+        Runs the rules issue() would, without transmitting, taking a
+        number or charging. Returns a ValidationResult for a document
+        that passes and for one the rules refuse (`valid` False, the
+        findings in `errors`). Anything else, such as a malformed body, an
+        unknown client or a 401, raises as in issue().
+        """
+        payload = _issue_payload(
+            document_type=document_type,
+            client_name=client_name,
+            tax_id=tax_id,
+            items=items,
+            recipient_address=recipient_address,
+            series=series,
+            number=number,
+            external_reference=external_reference,
+            discount=discount,
+            issued_at=issued_at,
+            purpose=purpose,
+            direction=direction,
+            referenced_keys=referenced_keys,
+            foreign_id=foreign_id,
+            export=export,
+            client_id=client_id,
+            update_client=update_client,
+            client_email=client_email,
+            client_phone=client_phone,
+            contingency=contingency,
+        )
+        try:
+            body = self._request(
+                "POST", "/invoices/validate", json=payload, company=company
+            )
+        except APIError as error:
+            if (
+                error.status_code == 422
+                and isinstance(error.body, dict)
+                and "valid" in error.body
+            ):
+                return ValidationResult.model_validate(error.body)
+            raise
+        return ValidationResult.model_validate(body)
 
     def cancel(
         self,

@@ -42,6 +42,7 @@ from .core.reference import KINDS, FiscalReference, Kind
 from .core.taxpayer import Taxpayer
 from .core.types import Direction, DocumentType, Environment, Manifestation, Purpose
 from .core.usage import ReceivedSync, Usage
+from .core.validation import Finding, ValidationResult
 from .core.webhooks import EVENTS, Webhooks
 
 __all__ = [
@@ -71,6 +72,8 @@ __all__ = [
     "Direction",
     "Address",
     "Usage",
+    "Finding",
+    "ValidationResult",
     "ReceivedSync",
     "InvoiceError",
     "APIError",
