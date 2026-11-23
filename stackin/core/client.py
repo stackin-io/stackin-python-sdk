@@ -13,6 +13,7 @@ import requests
 
 from stackin.br.export import Export
 from stackin.br.product import Product
+from stackin.br.terms import Intermediary, Payment, Transport, terms_payload
 from stackin.core.address import Address
 from stackin.core.exceptions import APIError, ConnectionFailedError, _api_error
 from stackin.core.types import (
@@ -363,6 +364,11 @@ def _issue_payload(
     client_email: str | None,
     client_phone: str | None,
     contingency: bool,
+    presence: str | None,
+    intermediary: Intermediary | None,
+    transport: Transport | None,
+    payments: list[Payment] | None,
+    change: Decimal | None,
 ) -> dict[str, Any]:
     if not items:
         raise ValueError("items can't be empty")
@@ -417,6 +423,22 @@ def _issue_payload(
         payload["number"] = number
     if export is not None:
         payload["export"] = export.to_dict()
+    terms = terms_payload(
+        presence=presence,
+        intermediary=intermediary,
+        transport=transport,
+        payments=payments,
+        change=change,
+    )
+    if terms and document_type is not DocumentType.NFE:
+        raise ValueError(f"{', '.join(terms)} only apply to an NF-e")
+    if document_type is not DocumentType.NFE:
+        for index, item in enumerate(items):
+            if item.net_weight is not None or item.gross_weight is not None:
+                raise ValueError(
+                    f"items[{index}].net_weight and gross_weight only apply to an NF-e"
+                )
+    payload.update(terms)
     if document_type is DocumentType.NFE:
         _validate_nfe_latin1(payload)
     if external_reference:
@@ -476,6 +498,11 @@ class Invoice(_Client):
         client_email: str | None = None,
         client_phone: str | None = None,
         contingency: bool = False,
+        presence: str | None = None,
+        intermediary: Intermediary | None = None,
+        transport: Transport | None = None,
+        payments: list[Payment] | None = None,
+        change: Decimal | None = None,
     ) -> dict:
         """Issues a fiscal document.
 
@@ -528,6 +555,13 @@ class Invoice(_Client):
         `contingency=True` sends an NF-e through the UF's contingency
         authorizer (SVC-AN/SVC-RS, tpEmis 6/7) for when its own is down.
         Left False, it is not sent.
+
+        NF-e only, each left out of the body when unset: `presence`
+        (indPres: 0, 1, 2, 3, 5 or 9), `intermediary` (the marketplace the
+        sale went through), `transport` (freight mode and volumes),
+        `payments` (up to 100) and `change` (vTroco). Their layout rules
+        are the API's; only the fixed code sets are checked here. A line's
+        `net_weight` and `gross_weight` (kg per unit) are NF-e only too.
         """
         payload = _issue_payload(
             document_type=document_type,
@@ -550,6 +584,11 @@ class Invoice(_Client):
             client_email=client_email,
             client_phone=client_phone,
             contingency=contingency,
+            presence=presence,
+            intermediary=intermediary,
+            transport=transport,
+            payments=payments,
+            change=change,
         )
 
         return cast(
@@ -650,6 +689,11 @@ class Invoice(_Client):
         client_email: str | None = None,
         client_phone: str | None = None,
         contingency: bool = False,
+        presence: str | None = None,
+        intermediary: Intermediary | None = None,
+        transport: Transport | None = None,
+        payments: list[Payment] | None = None,
+        change: Decimal | None = None,
     ) -> ValidationResult:
         """Dry run of issue(): the same arguments, nothing sent.
 
@@ -680,6 +724,11 @@ class Invoice(_Client):
             client_email=client_email,
             client_phone=client_phone,
             contingency=contingency,
+            presence=presence,
+            intermediary=intermediary,
+            transport=transport,
+            payments=payments,
+            change=change,
         )
         try:
             body = self._request(
@@ -1086,11 +1135,11 @@ class Invoice(_Client):
         needs_reason = manifestation is Manifestation.OPERACAO_NAO_REALIZADA
         if needs_reason and not reason:
             raise ValueError(
-                "manifestation 210240 (operação não realizada) requires " "a reason"
+                "manifestation 210240 (operação não realizada) requires a reason"
             )
         if not needs_reason and reason:
             raise ValueError(
-                f"manifestation {manifestation.value} does not take a " "reason"
+                f"manifestation {manifestation.value} does not take a reason"
             )
 
         payload = {"manifestation": manifestation.value}
