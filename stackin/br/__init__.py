@@ -2,6 +2,14 @@
 
 from stackin.br.export import Export
 from stackin.br.product import Fuel, IbsCbs, PresumedCredit, Product
+from stackin.br.terms import (
+    Intermediary,
+    Payment,
+    PaymentCard,
+    SaleTerms,
+    Transport,
+    TransportVolume,
+)
 from stackin.br.tax import (
     CofinsAliq,
     CofinsNt,
@@ -42,6 +50,12 @@ from stackin.br.tax import (
 )
 
 __all__ = [
+    "Intermediary",
+    "Payment",
+    "PaymentCard",
+    "SaleTerms",
+    "Transport",
+    "TransportVolume",
     "Product",
     "Fuel",
     "Export",

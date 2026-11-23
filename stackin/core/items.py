@@ -10,6 +10,7 @@ guess made here.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from decimal import Decimal
 from typing import Any, TypedDict, cast
 
@@ -33,6 +34,10 @@ _UPSERT_FIELDS = (
     "gtin",
     "service_code",
     "iss_retained",
+    "net_weight",
+    "gross_weight",
+    "ibs_cbs_cst",
+    "ibs_cbs_class",
 )
 
 
@@ -57,6 +62,10 @@ class CatalogItem(TypedDict):
     gtin: str | None
     service_code: str | None
     iss_retained: bool | None
+    net_weight: float | None
+    gross_weight: float | None
+    ibs_cbs_cst: str | None
+    ibs_cbs_class: str | None
     is_active: bool
     uses_count: int
     last_used_at: str | None
@@ -79,6 +88,24 @@ class ItemSaved:
 def _price(value: Decimal | float | int | str | None) -> Any:
     """A Decimal as a string: JSON has no decimal, a float would round."""
     return format(value, "f") if isinstance(value, Decimal) else value
+
+
+def _check_weight(name: str, value: Decimal | float | int | str | None) -> None:
+    if value is None:
+        return
+    try:
+        weight = Decimal(str(value))
+    except ArithmeticError:
+        raise ValueError(f"{name} must be a number") from None
+    if not weight.is_finite() or weight < 0:
+        raise ValueError(f"{name} must be 0 or more")
+
+
+def _check_ibs_cbs(cst: str | None, classification: str | None) -> None:
+    if cst is not None and not re.fullmatch(r"\d{3}", cst):
+        raise ValueError("ibs_cbs_cst must be 3 digits")
+    if classification is not None and not re.fullmatch(r"\d{6}", classification):
+        raise ValueError("ibs_cbs_class must be 6 digits")
 
 
 class Items(_Client):
@@ -155,6 +182,10 @@ class Items(_Client):
         gtin: str | None = None,
         service_code: str | None = None,
         iss_retained: bool | None = None,
+        net_weight: Decimal | float | int | str | None = None,
+        gross_weight: Decimal | float | int | str | None = None,
+        ibs_cbs_cst: str | None = None,
+        ibs_cbs_class: str | None = None,
         source: str | None = None,
         company: str | None = None,
     ) -> CatalogItem:
@@ -171,8 +202,10 @@ class Items(_Client):
         `kind` is product (NF-e) or service (NFS-e) and decides which
         fiscal fields apply: ncm, cfop, tax_situation, origin, cest and
         gtin for a product, service_code and iss_retained for a service.
-        `source` (manual by default) is kept only when the item is new.
-        Each field left as None is left out of the body.
+        `net_weight` and `gross_weight` (kg per unit) are product-only and fill the issuance line's weights;
+        `ibs_cbs_cst` and `ibs_cbs_class` go together and fill its IBS/CBS
+        group. `source` (manual by default) is kept only when the item is
+        new. Each field left as None is left out of the body.
         """
         return self.upsert(
             kind=kind,
@@ -190,6 +223,10 @@ class Items(_Client):
             gtin=gtin,
             service_code=service_code,
             iss_retained=iss_retained,
+            net_weight=net_weight,
+            gross_weight=gross_weight,
+            ibs_cbs_cst=ibs_cbs_cst,
+            ibs_cbs_class=ibs_cbs_class,
             source=source,
             company=company,
         ).item
@@ -212,6 +249,10 @@ class Items(_Client):
         gtin: str | None = None,
         service_code: str | None = None,
         iss_retained: bool | None = None,
+        net_weight: Decimal | float | int | str | None = None,
+        gross_weight: Decimal | float | int | str | None = None,
+        ibs_cbs_cst: str | None = None,
+        ibs_cbs_class: str | None = None,
         source: str | None = None,
         company: str | None = None,
     ) -> ItemSaved:
@@ -236,7 +277,16 @@ class Items(_Client):
             "gtin": gtin,
             "service_code": service_code,
             "iss_retained": iss_retained,
+            "net_weight": _price(net_weight),
+            "gross_weight": _price(gross_weight),
+            "ibs_cbs_cst": ibs_cbs_cst,
+            "ibs_cbs_class": ibs_cbs_class,
         }
+        _check_weight("net_weight", net_weight)
+        _check_weight("gross_weight", gross_weight)
+        _check_ibs_cbs(ibs_cbs_cst, ibs_cbs_class)
+        if (ibs_cbs_cst is None) != (ibs_cbs_class is None):
+            raise ValueError("ibs_cbs_cst and ibs_cbs_class go together")
         payload = {
             key: values[key] for key in _UPSERT_FIELDS if values[key] is not None
         }
@@ -270,6 +320,10 @@ class Items(_Client):
         gtin: str | None | _Unset = _UNSET,
         service_code: str | None | _Unset = _UNSET,
         iss_retained: bool | None | _Unset = _UNSET,
+        net_weight: Decimal | float | int | str | None | _Unset = _UNSET,
+        gross_weight: Decimal | float | int | str | None | _Unset = _UNSET,
+        ibs_cbs_cst: str | None | _Unset = _UNSET,
+        ibs_cbs_class: str | None | _Unset = _UNSET,
         is_active: bool | _Unset = _UNSET,
         company: str | None = None,
     ) -> CatalogItem:
@@ -296,11 +350,25 @@ class Items(_Client):
             "gtin": gtin,
             "service_code": service_code,
             "iss_retained": iss_retained,
+            "net_weight": net_weight,
+            "gross_weight": gross_weight,
+            "ibs_cbs_cst": ibs_cbs_cst,
+            "ibs_cbs_class": ibs_cbs_class,
             "is_active": is_active,
         }
         payload = {key: value for key, value in fields.items() if value is not _UNSET}
-        if "unit_price" in payload:
-            payload["unit_price"] = _price(payload["unit_price"])
+        for key in ("unit_price", "net_weight", "gross_weight"):
+            if key in payload:
+                payload[key] = _price(payload[key])
+        for key in ("net_weight", "gross_weight"):
+            if isinstance(fields[key], _Unset):
+                continue
+            _check_weight(key, fields[key])
+        if not isinstance(ibs_cbs_cst, _Unset) or not isinstance(ibs_cbs_class, _Unset):
+            _check_ibs_cbs(
+                None if isinstance(ibs_cbs_cst, _Unset) else ibs_cbs_cst,
+                None if isinstance(ibs_cbs_class, _Unset) else ibs_cbs_class,
+            )
 
         return cast(
             CatalogItem,

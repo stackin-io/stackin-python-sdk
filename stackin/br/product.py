@@ -186,6 +186,12 @@ class Product(BaseModel):
     used_movable_asset: bool = Field(default=False)
     purchase_order: str | None = Field(default=None)
     purchase_order_item: str | None = Field(default=None, pattern=r"^\d{1,6}$")
+    net_weight: Decimal | None = Field(
+        default=None, ge=0, description="Net weight of one unit in kg, NF-e only."
+    )
+    gross_weight: Decimal | None = Field(
+        default=None, ge=0, description="Gross weight of one unit in kg, NF-e only."
+    )
 
     ncm: str | None = Field(
         default=None,
@@ -285,10 +291,16 @@ class Product(BaseModel):
                 "amount",
                 "unit_price",
                 "tax",
+                "net_weight",
+                "gross_weight",
                 *_BR_FIELDS,
                 *_NFSE_FIELDS,
             },
         )
+        for weight in ("net_weight", "gross_weight"):
+            value = getattr(self, weight)
+            if value is not None:
+                data[weight] = _decimal_str(value)
         br = self.model_dump(exclude_none=True, include=_BR_FIELDS - {"tax"})
         if isinstance(self.tax, Tax):
             br["tax"] = self.tax.to_dict()
