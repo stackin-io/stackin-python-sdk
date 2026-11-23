@@ -59,14 +59,20 @@ class CreateTest(unittest.TestCase):
 
         self.assertEqual(body["net_weight"], 0)
 
-    def test_weights_are_not_limited_in_places(self):
+    def test_weights_take_six_decimals(self):
         body = _body(
             lambda c: c.create(
-                kind="product", description="x", net_weight=Decimal("0.1234567")
+                kind="product", description="x", net_weight=Decimal("0.123456")
             )
         )
 
-        self.assertEqual(body["net_weight"], "0.1234567")
+        self.assertEqual(body["net_weight"], "0.123456")
+        with self.assertRaisesRegex(ValueError, "net_weight"):
+            _items().create(
+                kind="product", description="x", net_weight=Decimal("0.1234567")
+            )
+        with self.assertRaisesRegex(ValueError, "gross_weight"):
+            _items().update("abc", gross_weight=Decimal("0.1234567"))
 
     def test_negative_weights_are_refused(self):
         with self.assertRaisesRegex(ValueError, "net_weight"):

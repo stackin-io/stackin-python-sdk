@@ -99,6 +99,8 @@ def _check_weight(name: str, value: Decimal | float | int | str | None) -> None:
         raise ValueError(f"{name} must be a number") from None
     if not weight.is_finite() or weight < 0:
         raise ValueError(f"{name} must be 0 or more")
+    if weight != weight.quantize(Decimal("0.000001")):
+        raise ValueError(f"{name} takes at most 6 decimal places")
 
 
 def _check_ibs_cbs(cst: str | None, classification: str | None) -> None:
@@ -202,7 +204,7 @@ class Items(_Client):
         `kind` is product (NF-e) or service (NFS-e) and decides which
         fiscal fields apply: ncm, cfop, tax_situation, origin, cest and
         gtin for a product, service_code and iss_retained for a service.
-        `net_weight` and `gross_weight` (kg per unit) are product-only and fill the issuance line's weights;
+        `net_weight` and `gross_weight` (kg per unit, up to 6 decimal places) are product-only and fill the issuance line's weights;
         `ibs_cbs_cst` and `ibs_cbs_class` fill its IBS/CBS
         group. `source` (manual by default) is kept only when the item is
         new. Each field left as None is left out of the body.
