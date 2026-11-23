@@ -205,12 +205,12 @@ class TestBodySerialization(IssueCase):
 
 class TestValidation(IssueCase):
     def test_presence_must_be_in_the_code_set(self):
-        for bad in ("4", "7", "", "x"):
+        for bad in ("6", "7", "", "x"):
             with self.subTest(bad=bad), self.assertRaisesRegex(ValueError, "presence"):
                 self.body(presence=bad)
 
     def test_every_presence_in_the_set_is_accepted(self):
-        for code in ("0", "1", "2", "3", "5", "9"):
+        for code in ("0", "1", "2", "3", "4", "5", "9"):
             self.assertEqual(self.body(presence=code)["presence"], code)
 
     def test_freight_mode_must_be_in_the_code_set(self):
@@ -243,9 +243,20 @@ class TestValidation(IssueCase):
         with self.assertRaisesRegex(ValidationError, "description"):
             Payment(method="99", amount=Decimal("1"))
 
-    def test_unknown_payment_method_is_refused(self):
-        with self.assertRaisesRegex(ValidationError, "method"):
-            Payment(method="06", amount=Decimal("1"))
+    def test_payment_method_is_two_digits_not_a_table(self):
+        self.assertEqual(Payment(method="06", amount=Decimal("1")).method, "06")
+        for bad in ("6", "1x", "003", ""):
+            with self.subTest(bad=bad), self.assertRaisesRegex(ValidationError, "tPag"):
+                Payment(method=bad, amount=Decimal("1"))
+
+    def test_negative_amount_and_change_are_refused(self):
+        with self.assertRaises(ValidationError):
+            Payment(method="01", amount=Decimal("-1"))
+        with self.assertRaisesRegex(ValueError, "change"):
+            self.body(change=Decimal("-1"))
+
+    def test_card_integration_is_any_string(self):
+        self.assertEqual(PaymentCard(integration="7").to_dict(), {"integration": "7"})
 
     def test_identifier_length(self):
         with self.assertRaises(ValidationError):

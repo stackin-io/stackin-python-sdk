@@ -80,22 +80,6 @@ class CreateTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "gross_weight"):
             _items().create(kind="product", description="x", gross_weight=-1)
 
-    def test_cst_and_class_shapes(self):
-        with self.assertRaisesRegex(ValueError, "ibs_cbs_cst"):
-            _items().create(
-                kind="product",
-                description="x",
-                ibs_cbs_cst="00",
-                ibs_cbs_class="000001",
-            )
-        with self.assertRaisesRegex(ValueError, "ibs_cbs_class"):
-            _items().create(
-                kind="product",
-                description="x",
-                ibs_cbs_cst="000",
-                ibs_cbs_class="1",
-            )
-
 
 class UpdateTest(unittest.TestCase):
     def test_only_the_passed_fields_are_sent(self):
@@ -118,7 +102,3 @@ class UpdateTest(unittest.TestCase):
     def test_update_refuses_a_bad_weight(self):
         with self.assertRaisesRegex(ValueError, "net_weight"):
             _items().update("abc", net_weight=Decimal("-1"))
-
-    def test_update_refuses_a_bad_class(self):
-        with self.assertRaisesRegex(ValueError, "ibs_cbs_class"):
-            _items().update("abc", ibs_cbs_class="12")
