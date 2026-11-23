@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.27.0 — 2026-11-23
+
+### Features
+- NF-e sale terms, line weights and item weight and IBS/CBS fields (#57)
+
+### Bug Fixes
+- sale terms accept presence 4, any 2-digit tPag and any card integration; drop item IBS/CBS format checks (#57)
+- **items:** catalog weights take at most 6 decimal places (#57)
+- keep only fixed-schema checks on the sale terms (#57)
+
 ## v0.26.0 — 2026-11-22
 
 ### Features

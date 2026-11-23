@@ -1,6 +1,6 @@
 """Invoice __init__ module."""
 
-__version__ = "0.26.0"
+__version__ = "0.27.0"
 __description__ = (
     "Python SDK for issuing, consulting and cancelling electronic invoices."
 )
