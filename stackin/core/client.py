@@ -262,6 +262,7 @@ class _Client:
         self,
         idempotency_key: str | None = None,
         company: str | None = None,
+        accept_language: str | None = None,
     ) -> dict:
         headers = dict(self.extra_headers)
         if self.api_key:
@@ -270,6 +271,8 @@ class _Client:
             headers["Idempotency-Key"] = idempotency_key
         if selected := company or self.company:
             headers[COMPANY_HEADER] = selected
+        if accept_language:
+            headers["Accept-Language"] = accept_language
         return headers
 
     def _request(
@@ -281,6 +284,8 @@ class _Client:
         params: dict | None = None,
         idempotency_key: str | None = None,
         company: str | None = None,
+        accept_language: str | None = None,
+        envelope: bool = False,
     ) -> Any:
         response = self._send(
             method,
@@ -289,12 +294,13 @@ class _Client:
             params=params,
             idempotency_key=idempotency_key,
             company=company,
+            accept_language=accept_language,
         )
         try:
             body = response.json() if response.content else {}
         except ValueError:
             body = {}
-        if isinstance(body, dict):
+        if isinstance(body, dict) and not envelope:
             return body.get("result", body)
         return body
 
@@ -307,6 +313,7 @@ class _Client:
         params: dict | None = None,
         idempotency_key: str | None = None,
         company: str | None = None,
+        accept_language: str | None = None,
     ) -> requests.Response:
         url = f"{self.base_url}/api/v1{path}"
 
@@ -316,7 +323,7 @@ class _Client:
                 url,
                 json=json,
                 params=params,
-                headers=self._headers(idempotency_key, company),
+                headers=self._headers(idempotency_key, company, accept_language),
                 timeout=self.timeout,
             )
         except requests.RequestException as error:
@@ -495,6 +502,7 @@ class Invoice(_Client):
         transport: Transport | None = None,
         payments: list[Payment] | None = None,
         change: Decimal | None = None,
+        accept_language: str | None = None,
     ) -> dict:
         """Issues a fiscal document.
 
@@ -554,6 +562,16 @@ class Invoice(_Client):
         `payments` (up to 100) and `change` (vTroco). Their layout rules
         are the API's; only the fixed code sets are checked here. A line's
         `net_weight` and `gross_weight` (kg per unit) are NF-e only too.
+
+        An NFS-e line takes `nbs`, the service's NBS code; the API
+        requires it on a line that carries `ibs_cbs`.
+
+        The result also carries `warnings`, always a list (empty when
+        there are none) of `code`, `message` and `field` (None when no
+        single field is at fault): activity findings that did not stop
+        the issuance. `accept_language` (pt-BR, en or es) localizes their
+        `message`; it goes only in the Accept-Language header and is left
+        off when unset.
         """
         payload = _issue_payload(
             document_type=document_type,
@@ -583,16 +601,21 @@ class Invoice(_Client):
             change=change,
         )
 
-        return cast(
-            dict,
-            self._request(
-                "POST",
-                "/invoices",
-                json=payload,
-                idempotency_key=idempotency_key,
-                company=company,
-            ),
+        body = self._request(
+            "POST",
+            "/invoices",
+            json=payload,
+            idempotency_key=idempotency_key,
+            company=company,
+            accept_language=accept_language,
+            envelope=True,
         )
+        if not isinstance(body, dict):
+            return cast(dict, body)
+        result = dict(body.get("result", body))
+        warnings = body.get("warnings") if "result" in body else None
+        result["warnings"] = list(warnings or result.get("warnings") or [])
+        return result
 
     def consult(
         self,
@@ -686,6 +709,7 @@ class Invoice(_Client):
         transport: Transport | None = None,
         payments: list[Payment] | None = None,
         change: Decimal | None = None,
+        accept_language: str | None = None,
     ) -> ValidationResult:
         """Dry run of issue(): the same arguments, nothing sent.
 
@@ -694,6 +718,9 @@ class Invoice(_Client):
         that passes and for one the rules refuse (`valid` False, the
         findings in `errors`). Anything else, such as a malformed body, an
         unknown client or a 401, raises as in issue().
+
+        `accept_language` (pt-BR, en or es) localizes the warnings'
+        `message`; it goes only in the Accept-Language header.
         """
         payload = _issue_payload(
             document_type=document_type,
@@ -724,7 +751,11 @@ class Invoice(_Client):
         )
         try:
             body = self._request(
-                "POST", "/invoices/validate", json=payload, company=company
+                "POST",
+                "/invoices/validate",
+                json=payload,
+                company=company,
+                accept_language=accept_language,
             )
         except APIError as error:
             if (
