@@ -488,13 +488,16 @@ carry is left out by the API with the warning `RECIPIENT_COMPLEMENT_OMITTED`.
 
 `NfseDetails` holds `approximate_taxes`, `competence_date`, `service_city_code` or
 `service_country_code`, `iss`, `federal`, `deductions`, `substitution`, `construction`,
-`event`, `references`, `intermediary` and `foreign_trade`, each a model in `stackin.br` with
+`event`, `references`, `provider` (a `NfseProvider`: the company's `caepf`, `phone` and
+`email`), `recipient_caepf` (toma/CAEPF, 14 digits), `intermediary` and `foreign_trade`, each a model in `stackin.br` with
 the API's field names. An NFS-e takes one line: more is refused 422 `NFSE_SINGLE_ITEM`. The
 SDK checks each field's own shape (patterns, lengths, ranges, code sets); which groups may
 travel together, and the MEI, Simples and layout rules, are the API's, answered as an
 `APIError`. The answer's `warnings` carry what did not stop the issuance (such as
 `APPROXIMATE_TAXES_MISSING` and the `*_RECOMMENDED` codes), and the invoice detail returns the
-stored `nfse` and `substituted_by_invoice_id`.
+stored `nfse` and `substituted_by_invoice_id`. A deduction document also takes `other_dfe` (an
+`OtherDfe` with `key` and `description`) for a national-repository document that is not an NFS-e,
+NF-e or CT-e; the API accepts it only in the homologation layout.
 
 ```python
 from datetime import date

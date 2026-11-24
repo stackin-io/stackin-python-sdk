@@ -35,6 +35,8 @@ from stackin.br import (
     MunicipalNfse,
     NfseDetails,
     NfseIntermediary,
+    NfseProvider,
+    OtherDfe,
     PersonAddress,
     PisCofins,
     Product,
@@ -299,6 +301,44 @@ class TestNfseObject(IssueCase):
         self.assertIs(sent["foreign_trade"]["share_with_mdic"], False)
         self.assertNotIn("service_country_code", sent)
 
+    def test_provider_recipient_caepf_and_other_dfe_go_out(self):
+        sent = self.body(
+            nfse=NfseDetails(
+                provider=NfseProvider(
+                    caepf="12345678901234",
+                    phone="+55 11 99999-0000",
+                    email="a@b.com",
+                ),
+                recipient_caepf="43210987654321",
+                deductions=Deductions(
+                    documents=[
+                        DeductionDocument(
+                            type=99,
+                            description="Other",
+                            other_dfe=OtherDfe(key="K" * 50, description="Receipt"),
+                            issue_date=date(2026, 10, 1),
+                            total_amount=Decimal("50"),
+                            deducted_amount=Decimal("40"),
+                        )
+                    ]
+                ),
+            )
+        )["nfse"]
+
+        self.assertEqual(
+            sent["provider"],
+            {
+                "caepf": "12345678901234",
+                "phone": "+55 11 99999-0000",
+                "email": "a@b.com",
+            },
+        )
+        self.assertEqual(sent["recipient_caepf"], "43210987654321")
+        self.assertEqual(
+            sent["deductions"]["documents"][0]["other_dfe"],
+            {"key": "K" * 50, "description": "Receipt"},
+        )
+
     def test_unset_fields_are_left_out_of_each_group(self):
         sent = self.body(nfse=NfseDetails(iss=IssDetails(rate=Decimal("2"))))["nfse"]
 
@@ -338,6 +378,16 @@ class TestRefusedShapes(unittest.TestCase):
                 zip_code="1", street="a", number="1", neighborhood="b"
             )
         )
+
+    def test_caepf_and_other_dfe_shapes(self):
+        self.refused(lambda: NfseProvider(caepf="123"))
+        self.refused(lambda: NfseProvider(unknown="x"))
+        self.refused(lambda: NfseDetails(recipient_caepf="1234567890123a"))
+        self.refused(lambda: OtherDfe(key="", description="x"))
+        self.refused(lambda: OtherDfe(key="K" * 51, description="x"))
+        self.refused(lambda: OtherDfe(key="k", description=""))
+        self.refused(lambda: OtherDfe(key="k", description="d" * 256))
+        NfseProvider()
 
     def test_numeric_limits(self):
         self.refused(lambda: ApproximateTaxes(simples_percent=Decimal("100")))
