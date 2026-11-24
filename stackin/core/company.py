@@ -48,6 +48,7 @@ class Company(_Client):
         *,
         address: Mapping[str, str | None] | None = None,
         fiscal_fields: Mapping[str, str | None] | None = None,
+        block_activity_mismatch: bool | None = None,
         company: str | None = None,
     ) -> dict:
         """Fixes the issuer's address and, for the owner, its fiscal fields.
@@ -62,6 +63,11 @@ class Company(_Client):
         lets an ME/EPP's NFS-e carry IBS/CBS), state_registration and
         service_code; they are the company
         owner's alone, and anyone else gets an APIError 403.
+
+        `block_activity_mismatch` (owner only, else APIError 403) makes
+        the API refuse an issuance whose activity is not allowed or not
+        registered (MEI_ACTIVITY_NOT_ALLOWED, ACTIVITY_NOT_REGISTERED) as
+        a 422 instead of a warning; True and False are both sent.
 
         Only what is given is sent; a call with nothing changes nothing.
         Returns every readiness() field plus `address` and
@@ -88,6 +94,11 @@ class Company(_Client):
                     raise ValueError(f"{key} must be one of {', '.join(allowed)}")
             if fields:
                 payload["fiscal_fields"] = fields
+
+        if block_activity_mismatch is not None:
+            if not isinstance(block_activity_mismatch, bool):
+                raise ValueError("block_activity_mismatch must be a bool")
+            payload["block_activity_mismatch"] = block_activity_mismatch
 
         return cast(
             dict,
