@@ -465,7 +465,7 @@ class TestClientIssue(unittest.TestCase):
                 items=[item],
             )
 
-        self.assertEqual(result, {"access_key": "abc"})
+        self.assertEqual(result, {"access_key": "abc", "warnings": []})
         _, kwargs = mock_request.call_args
         self.assertEqual(kwargs["json"]["document_type"], "nfse")
         self.assertEqual(kwargs["json"]["client_name"], "Buyer")
