@@ -32,6 +32,7 @@ _UPSERT_FIELDS = (
     "cest",
     "gtin",
     "service_code",
+    "nbs",
     "iss_retained",
     "net_weight",
     "gross_weight",
@@ -60,6 +61,7 @@ class CatalogItem(TypedDict):
     cest: str | None
     gtin: str | None
     service_code: str | None
+    nbs: str | None
     iss_retained: bool | None
     net_weight: float | None
     gross_weight: float | None
@@ -175,6 +177,7 @@ class Items(_Client):
         cest: str | None = None,
         gtin: str | None = None,
         service_code: str | None = None,
+        nbs: str | None = None,
         iss_retained: bool | None = None,
         net_weight: Decimal | float | int | str | None = None,
         gross_weight: Decimal | float | int | str | None = None,
@@ -195,7 +198,7 @@ class Items(_Client):
 
         `kind` is product (NF-e) or service (NFS-e) and decides which
         fiscal fields apply: ncm, cfop, tax_situation, origin, cest and
-        gtin for a product, service_code and iss_retained for a service.
+        gtin for a product, service_code, nbs and iss_retained for a service.
         `net_weight` and `gross_weight` (kg per unit, up to 6 decimal places) are product-only and fill the issuance line's weights;
         `ibs_cbs_cst` and `ibs_cbs_class` fill its IBS/CBS
         group. `source` (manual by default) is kept only when the item is
@@ -216,6 +219,7 @@ class Items(_Client):
             cest=cest,
             gtin=gtin,
             service_code=service_code,
+            nbs=nbs,
             iss_retained=iss_retained,
             net_weight=net_weight,
             gross_weight=gross_weight,
@@ -242,6 +246,7 @@ class Items(_Client):
         cest: str | None = None,
         gtin: str | None = None,
         service_code: str | None = None,
+        nbs: str | None = None,
         iss_retained: bool | None = None,
         net_weight: Decimal | float | int | str | None = None,
         gross_weight: Decimal | float | int | str | None = None,
@@ -270,6 +275,7 @@ class Items(_Client):
             "cest": cest,
             "gtin": gtin,
             "service_code": service_code,
+            "nbs": nbs,
             "iss_retained": iss_retained,
             "net_weight": _price(net_weight),
             "gross_weight": _price(gross_weight),
@@ -310,6 +316,7 @@ class Items(_Client):
         cest: str | None | _Unset = _UNSET,
         gtin: str | None | _Unset = _UNSET,
         service_code: str | None | _Unset = _UNSET,
+        nbs: str | None | _Unset = _UNSET,
         iss_retained: bool | None | _Unset = _UNSET,
         net_weight: Decimal | float | int | str | None | _Unset = _UNSET,
         gross_weight: Decimal | float | int | str | None | _Unset = _UNSET,
@@ -340,6 +347,7 @@ class Items(_Client):
             "cest": cest,
             "gtin": gtin,
             "service_code": service_code,
+            "nbs": nbs,
             "iss_retained": iss_retained,
             "net_weight": net_weight,
             "gross_weight": gross_weight,
