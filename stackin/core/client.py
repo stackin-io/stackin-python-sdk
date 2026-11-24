@@ -12,6 +12,7 @@ from typing import Any, Literal, cast
 import requests
 
 from stackin.br.export import Export
+from stackin.br.nfse import NfseDetails
 from stackin.br.product import Product
 from stackin.br.terms import Intermediary, Payment, Transport, terms_payload
 from stackin.core.address import Address
@@ -376,6 +377,9 @@ def _issue_payload(
     transport: Transport | None,
     payments: list[Payment] | None,
     change: Decimal | None,
+    recipient_municipal_registration: str | None,
+    foreign_id_missing_reason: int | None,
+    nfse: NfseDetails | None,
 ) -> dict[str, Any]:
     if not items:
         raise ValueError("items can't be empty")
@@ -384,7 +388,7 @@ def _issue_payload(
     if client_name is None and not from_client:
         raise ValueError("client_name is required unless client_id is given")
 
-    abroad = document_type is DocumentType.NFE and _is_abroad(recipient_address)
+    abroad = _is_abroad(recipient_address)
     if tax_id is None and not abroad and not from_client:
         raise ValueError(
             "tax_id is required, except on an NF-e to a buyer abroad "
@@ -410,7 +414,7 @@ def _issue_payload(
         if recipient_address is not None or not from_client:
             _validate_nfe_address(recipient_address)
     retained = any(item.tax_retained for item in items)
-    if document_type is DocumentType.NFSE and retained:
+    if document_type is DocumentType.NFSE and retained and not abroad:
         if recipient_address is not None or not from_client:
             _validate_nfse_retained_address(recipient_address)
 
@@ -462,6 +466,14 @@ def _issue_payload(
         payload["client_phone"] = client_phone
     if contingency:
         payload["contingency"] = True
+    if recipient_municipal_registration is not None:
+        payload["recipient_municipal_registration"] = recipient_municipal_registration
+    if foreign_id_missing_reason is not None:
+        payload["foreign_id_missing_reason"] = foreign_id_missing_reason
+    if nfse is not None:
+        details = nfse.to_dict()
+        if details:
+            payload["nfse"] = details
     return payload
 
 
@@ -502,6 +514,9 @@ class Invoice(_Client):
         transport: Transport | None = None,
         payments: list[Payment] | None = None,
         change: Decimal | None = None,
+        recipient_municipal_registration: str | None = None,
+        foreign_id_missing_reason: int | None = None,
+        nfse: NfseDetails | None = None,
         accept_language: str | None = None,
     ) -> dict:
         """Issues a fiscal document.
@@ -564,7 +579,22 @@ class Invoice(_Client):
         `net_weight` and `gross_weight` (kg per unit) are NF-e only too.
 
         An NFS-e line takes `nbs`, the service's NBS code; the API
-        requires it on a line that carries `ibs_cbs`.
+        requires it on a line that carries `ibs_cbs`. It also takes
+        `municipal_service_code` (cTribMun, three digits), `internal_code`
+        (cIntContrib) and `conditional_discount`.
+
+        NFS-e only, each left out of the body when unset: `nfse`, an
+        `NfseDetails` with the document-level fields (approximate_taxes,
+        competence_date, service_city_code or service_country_code, iss,
+        federal, deductions, substitution, construction, event,
+        references, intermediary and foreign_trade);
+        `recipient_municipal_registration` (toma/IM, up to 15 letters or
+        digits); and, for a recipient abroad, `foreign_id_missing_reason`
+        (1 exempt from a NIF, 2 not required) instead of `foreign_id`,
+        with the address's `country_iso2`, `postal_code` and `province`.
+        An NFS-e takes one line: more is refused 422 NFSE_SINGLE_ITEM.
+        Only the shape of each field is checked here; the fiscal rules
+        between them are the API's, answered as an APIError.
 
         The result also carries `warnings`, always a list (empty when
         there are none) of `code`, `message` and `field` (None when no
@@ -599,6 +629,9 @@ class Invoice(_Client):
             transport=transport,
             payments=payments,
             change=change,
+            recipient_municipal_registration=recipient_municipal_registration,
+            foreign_id_missing_reason=foreign_id_missing_reason,
+            nfse=nfse,
         )
 
         body = self._request(
@@ -709,6 +742,9 @@ class Invoice(_Client):
         transport: Transport | None = None,
         payments: list[Payment] | None = None,
         change: Decimal | None = None,
+        recipient_municipal_registration: str | None = None,
+        foreign_id_missing_reason: int | None = None,
+        nfse: NfseDetails | None = None,
         accept_language: str | None = None,
     ) -> ValidationResult:
         """Dry run of issue(): the same arguments, nothing sent.
@@ -748,6 +784,9 @@ class Invoice(_Client):
             transport=transport,
             payments=payments,
             change=change,
+            recipient_municipal_registration=recipient_municipal_registration,
+            foreign_id_missing_reason=foreign_id_missing_reason,
+            nfse=nfse,
         )
         try:
             body = self._request(

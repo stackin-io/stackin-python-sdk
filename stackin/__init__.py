@@ -38,6 +38,7 @@ from .core.ibs_cbs import (
     IbsCbsRates,
 )
 from .core.items import CatalogItem, Items, ItemSaved
+from .core.nbs import NbsSuggestion, NbsSuggestions, ReferenceSource
 from .core.reference import KINDS, FiscalReference, Kind
 from .core.taxpayer import Taxpayer
 from .core.types import Direction, DocumentType, Environment, Manifestation, Purpose
@@ -64,6 +65,9 @@ __all__ = [
     "IbsCbsAppliedRates",
     "IbsCbsAmounts",
     "KINDS",
+    "NbsSuggestion",
+    "NbsSuggestions",
+    "ReferenceSource",
     "Taxpayer",
     "DocumentType",
     "Environment",
