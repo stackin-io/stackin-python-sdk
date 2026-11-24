@@ -243,7 +243,7 @@ from stackin.br import IbsCbs, Product
 Product(description="Arroz", ncm="10063021", cfop="5102", ibs_cbs=IbsCbs(cst="200", classification="200003", rate_state=0.1, rate_city=0.0, rate_federal=0.9, reduction_ibs=60, reduction_cbs=60))
 ```
 
-On an **NFS-e**: only `cst`, `classification` and `operation_indicator` (cIndOp, the 6-digit code of the NFS-e place-of-supply table, mandatory on a production NFS-e). The Sefin Nacional computes the base, rates and amounts, so the API refuses the rates, `base` and the reductions there. An ME/EPP may send the group only with `simples_apuracao_ibs_cbs` `"3"` (see `Company.update`); an MEI never:
+On an **NFS-e**: `cst`, `classification` and `operation_indicator` (cIndOp, the 6-digit code of the NFS-e place-of-supply table, mandatory on a production NFS-e), plus the optional groups `personal_use` (indFinal), `government` (`IbsCbsGovernment`), `referenced_nfse` (access keys), `recipient` (`IbsCbsRecipient`, with an `IbsCbsRecipientAddress`), `real_estate` (`RealEstate`, `RealEstateLease`, `RealEstateUnit`), `movable_goods` (`MovableGood`), `regular_taxation` (`IbsCbsRegularTaxation`), `deferral` (`IbsCbsDeferral`) and `presumed_credit` (cCredPres). The Sefin Nacional computes the base, rates and amounts, so the API refuses the rates, `base` and the reductions there. An ME/EPP may send the group only with `simples_apuracao_ibs_cbs` `"3"` (see `Company.update`); an MEI never:
 
 ```python
 Product(description="Consultoria", unit_price=Decimal("1000.00"), ibs_cbs=IbsCbs(cst="000", classification="000001", operation_indicator="100301"))
@@ -475,6 +475,68 @@ single field is at fault). `validate()` returns the same findings in
 English) localizes their `message` on `issue()` and `validate()`; it goes only in the
 `Accept-Language` header and is left off when unset.
 
+## NFS-e fields beyond the lines
+
+`issue()` and `validate()` take, for an NFS-e only and each left out of the body when unset,
+`nfse` (an `NfseDetails`), `recipient_municipal_registration` (toma/IM, up to 15 letters or
+digits) and, for a recipient abroad, `foreign_id_missing_reason` (`1` exempt from a NIF, `2`
+not required) instead of `foreign_id`. A line takes `municipal_service_code` (cTribMun, three
+digits), `internal_code` (cIntContrib, up to 20 letters or digits) and `conditional_discount`
+(BRL, a `Decimal`). The recipient `Address` takes `complement` and, for state `EX`,
+`country_iso2` (ISO alpha-2), `postal_code` and `province`; a `complement` the document cannot
+carry is left out by the API with the warning `RECIPIENT_COMPLEMENT_OMITTED`.
+
+`NfseDetails` holds `approximate_taxes`, `competence_date`, `service_city_code` or
+`service_country_code`, `iss`, `federal`, `deductions`, `substitution`, `construction`,
+`event`, `references`, `intermediary` and `foreign_trade`, each a model in `stackin.br` with
+the API's field names. An NFS-e takes one line: more is refused 422 `NFSE_SINGLE_ITEM`. The
+SDK checks each field's own shape (patterns, lengths, ranges, code sets); which groups may
+travel together, and the MEI, Simples and layout rules, are the API's, answered as an
+`APIError`. The answer's `warnings` carry what did not stop the issuance (such as
+`APPROXIMATE_TAXES_MISSING` and the `*_RECOMMENDED` codes), and the invoice detail returns the
+stored `nfse` and `substituted_by_invoice_id`.
+
+```python
+from datetime import date
+from decimal import Decimal
+
+from stackin.br import ApproximateTaxes, IssDetails, NfseDetails
+
+invoice.issue(
+    document_type=DocumentType.NFSE,
+    client_name="Maria Silva",
+    tax_id="12345678909",
+    recipient_municipal_registration="123456",
+    items=[
+        Product(
+            description="Consultoria",
+            unit_price=Decimal("1500.00"),
+            service_code="01.07",
+            nbs="1.1502.10.00",
+            municipal_service_code="001",
+            conditional_discount=Decimal("50.00"),
+        )
+    ],
+    nfse=NfseDetails(
+        competence_date=date(2026, 11, 1),
+        approximate_taxes=ApproximateTaxes(
+            federal_percent=Decimal("13.45"),
+            state_percent=Decimal("0"),
+            municipal_percent=Decimal("2"),
+        ),
+        iss=IssDetails(rate=Decimal("2.5"), retention="none"),
+    ),
+)
+```
+
+An MEI cannot state `municipal_service_code`, `iss.rate`, `federal`, `deductions`, a
+`special_tax_regime` other than 0 or `approximate_taxes.simples_percent`; the API refuses each (for
+instance `MUNICIPAL_SERVICE_CODE_NOT_FOR_MEI`, `DEDUCTIONS_NOT_FOR_MEI`,
+`FEDERAL_TAXES_NOT_FOR_MEI`). `Company.update(fiscal_fields=...)` also takes the company's
+defaults for these: `approximate_tax_simples_percent`, `approximate_tax_federal_percent`,
+`approximate_tax_state_percent`, `approximate_tax_municipal_percent`, `municipal_registration`,
+`special_tax_regime` (0 to 6 or 9) and `iss_rate`.
+
 ## Fix the issuer: `Company.update`
 
 ```python
@@ -504,7 +566,8 @@ in the dashboard; any other key is a `ValueError` before the call, as are a
 codes, or a `simples_apuracao_ibs_cbs` other than 1 (IBS/CBS in the DAS) or 3
 (outside it, which an ME/EPP needs for IBS/CBS on an NFS-e). `fiscal_fields`
 (`tax_regime`, `simples_nacional`, `simples_apuracao`, `simples_apuracao_ibs_cbs`,
-`state_registration`, `service_code`) belong to the company owner: anyone else is
+`state_registration`, `service_code`, and for an NFS-e `municipal_registration`,
+`special_tax_regime`, `iss_rate` and the four `approximate_tax_*_percent`) belong to the company owner: anyone else is
 an `APIError` 403. `block_activity_mismatch=True` (also the owner's alone) makes the
 API refuse an issuance with `MEI_ACTIVITY_NOT_ALLOWED` or `ACTIVITY_NOT_REGISTERED` as
 a 422 instead of a warning; `False` turns it back off, and only a `bool` is accepted.
@@ -614,6 +677,13 @@ Taxpayer(api_key="...").get("00000000000191")
 `cfop`, `ncm`, `cest`, `cst`, `csosn`, `iss_service`, `icms_fuel` and `ibs_cbs_class` have accessors. **`kind(name)` reaches anything else**, including a classification published after this release — ask `kinds()` rather than trusting this list.
 
 `metadata` is passed through as the API sends it and differs per kind: `utrib` on an NCM, `ncm_code` on a CEST, `tax_type` on a CST, `None` on an ISS service.
+
+`nbs_suggestions(service_code)` answers the NBS codes NFS-e Anexo VIII pairs with a service code (`1.07`, `1.03.02` or `010302`), as an `NbsSuggestions` whose `suggestions` each carry `nbs`, `description`, `operation_indicator` and `ibs_cbs_classification` for a line's `nbs` and `ibs_cbs`. They are suggestions only: nothing is applied unless you send it.
+
+```python
+for found in ref.nbs_suggestions("1.07").suggestions:
+    print(found.nbs, found.operation_indicator, found.ibs_cbs_classification)
+```
 
 `cities(name, state=None)` lists the municipalities whose name starts with `name`, at most 20, each with its IBGE `code` — issuing resolves `city_code` by itself, so this is for a name that matches more than one:
 
@@ -778,7 +848,8 @@ Invoice(api_key="...").issue(
 
 - `kind` is `product` (NF-e) or `service` (NFS-e) and decides which fiscal fields an item
   may carry: `ncm`, `cfop`, `tax_situation`, `origin`, `cest`, `gtin` for a product,
-  `service_code`, `nbs` and `iss_retained` for a service. The API refuses the other kind's (422).
+  `service_code`, `nbs`, `municipal_service_code`, `internal_code` and `iss_retained` for a service.
+  The API refuses the other kind's (422).
   Nothing fiscal is required to save an item; an NF-e still refuses a line with no `ncm` or
   `cfop` when it is issued.
 - `create()` is the API's upsert: an item with the same `external_reference` (or the same
