@@ -2,6 +2,7 @@
 name = "stackin-python-sdk"
 type = "library"
 language = "python"
+ci = "github"
 
 [source_host]
 kind = "github"
@@ -10,3 +11,17 @@ repo = "stackin-io/stackin-python-sdk"
 [release]
 strategy = "semver"
 changelog = "conventional"
+
+[[scopes]]
+name = "prod"
+kind = "library"
+criticality = "high"
+
+[[deploy.targets]]
+name = "pypi"
+kind = "pypi"
+run_by = "github_actions"
+observe = true
+workflow = "python-publish-pypi.yml"
+stages = ["prod"]
+package = "stackin-python-sdk"
