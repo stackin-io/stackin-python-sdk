@@ -229,6 +229,9 @@ class Product(BaseModel):
     service_code: str | None = Field(
         default=None, description="LC 116/2003 item.subitem, nfse only."
     )
+    nbs: str | None = Field(
+        default=None, description="NBS code of the service, nfse only."
+    )
     service_discount: float | None = Field(
         default=None, description="Unconditional discount, nfse only."
     )
@@ -279,6 +282,7 @@ class Product(BaseModel):
         """Returns the item as a plain dict, ready for the request body."""
         _NFSE_FIELDS = {
             "service_code",
+            "nbs",
             "service_discount",
             "tax_retained",
             "observations",
@@ -329,6 +333,8 @@ class Product(BaseModel):
             "tax_retained": self.tax_retained,
             "observations": self.observations,
         }
+        if self.nbs is not None:
+            result["nbs"] = self.nbs
         if from_catalog and "tax_retained" not in self.model_fields_set:
             del result["tax_retained"]
         return result
