@@ -14,6 +14,7 @@ from urllib.parse import quote
 
 from stackin.core.client import _Client
 from stackin.core.ibs_cbs import IbsCbsCalculation, IbsCbsCalculationItem, IbsCbsRates
+from stackin.core.nbs import NbsSuggestions
 from stackin.core.types import Environment
 
 
@@ -204,6 +205,26 @@ class FiscalReference(_Client):
             params["state"] = state.upper()
 
         return cast(list[dict], self._request("GET", "/cities", params=params))
+
+    def nbs_suggestions(self, service_code: str) -> NbsSuggestions:
+        """The NBS codes NFS-e Anexo VIII pairs with a service code.
+
+        `service_code` is the LC 116 item.subitem as an issuance line
+        takes it: `1.07`, `1.03.02` or `010302`; only its subitem decides
+        the answer. Each suggestion carries the NBS, its description and
+        the `operation_indicator` and `ibs_cbs_classification` Anexo VIII
+        lists for it, for a line's `nbs` and `ibs_cbs`. They are
+        suggestions only: nothing is applied unless the caller sends it.
+        A malformed code raises APIError 422.
+        """
+        if not 1 <= len(service_code) <= 12:
+            raise ValueError("service_code must be 1 to 12 characters")
+        return NbsSuggestions.model_validate(
+            self._request(
+                "GET",
+                f"/service-codes/{_segment(service_code)}/nbs",
+            )
+        )
 
     def calculate_ibs_cbs(
         self,
