@@ -334,11 +334,20 @@ class OtherDocument(_Model):
     )
 
 
+class OtherDfe(_Model):
+    """A national-repository document that is not an NFS-e, NF-e or CT-e
+    (`dFeNacional` with `tipoChaveDFe` 9)."""
+
+    key: str = Field(min_length=1, max_length=50, description="chaveDFe.")
+    description: str = Field(min_length=1, max_length=255, description="xTipoChaveDFe.")
+
+
 class DeductionDocument(_Model):
     """One document behind a deduction (`docDedRed` or `docAjusteBC`).
 
     Exactly one of `nfse_key`, `nfe_key`, `cte_key`, `municipal_nfse`,
-    `paper_invoice`, `fiscal_document` and `other_document` identifies it.
+    `paper_invoice`, `fiscal_document`, `other_document` and `other_dfe` identifies
+    it.
     """
 
     type: DeductionType = Field(description="tpDedRed or tpAjusteBC.")
@@ -352,6 +361,9 @@ class DeductionDocument(_Model):
     paper_invoice: PaperInvoice | None = None
     fiscal_document: OtherFiscalDocument | None = None
     other_document: OtherDocument | None = None
+    other_dfe: OtherDfe | None = Field(
+        default=None, description="dFeNacional with tipoChaveDFe 9."
+    )
     issue_date: date = Field(description="dtEmiDoc.")
     competence_date: date | None = Field(default=None, description="dtCompDoc.")
     total_amount: Decimal = Field(
@@ -413,6 +425,17 @@ class NfseIntermediary(_Model):
     email: str | None = Field(default=None, description="email.")
 
 
+class NfseProvider(_Model):
+    """The DPS `prest` contact of the issuing company: `caepf`, `phone` and
+    `email`, all optional."""
+
+    caepf: str | None = Field(
+        default=None, pattern=r"^\d{14}$", description="prest/CAEPF, 14 digits."
+    )
+    phone: str | None = Field(default=None, description="prest/fone.")
+    email: str | None = Field(default=None, description="prest/email.")
+
+
 class ForeignTrade(_Model):
     """The DPS `comExt` group: a service traded with someone abroad."""
 
@@ -457,6 +480,10 @@ class NfseDetails(_Model):
     construction: Construction | None = None
     event: Event | None = None
     references: References | None = None
+    provider: NfseProvider | None = None
+    recipient_caepf: str | None = Field(
+        default=None, pattern=r"^\d{14}$", description="toma/CAEPF, 14 digits."
+    )
     intermediary: NfseIntermediary | None = None
     foreign_trade: ForeignTrade | None = None
 
