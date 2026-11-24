@@ -7,6 +7,15 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from stackin.br.nfse import (
+    NFSE_KEY_PATTERN,
+    IbsCbsDeferral,
+    IbsCbsGovernment,
+    IbsCbsRecipient,
+    IbsCbsRegularTaxation,
+    MovableGood,
+    RealEstate,
+)
 from stackin.br.tax import Tax
 
 
@@ -60,6 +69,44 @@ class IbsCbs(BaseModel):
             "from the table."
         ),
     )
+    personal_use: bool | None = Field(
+        default=None, description="indFinal, NFS-e only: personal use or consumption."
+    )
+    government: IbsCbsGovernment | None = Field(
+        default=None, description="tpOper and tpEnteGov, NFS-e only."
+    )
+    referenced_nfse: list[Annotated[str, Field(pattern=NFSE_KEY_PATTERN)]] | None = (
+        Field(
+            default=None,
+            min_length=1,
+            max_length=99,
+            description="gRefNFSe, NFS-e only: access keys of the NFS-e referred to.",
+        )
+    )
+    recipient: IbsCbsRecipient | None = Field(
+        default=None, description="dest, NFS-e only."
+    )
+    real_estate: RealEstate | None = Field(
+        default=None, description="imovel, NFS-e only."
+    )
+    movable_goods: list[MovableGood] | None = Field(
+        default=None,
+        min_length=1,
+        max_length=1000,
+        description="bensMoveis, NFS-e only.",
+    )
+    regular_taxation: IbsCbsRegularTaxation | None = Field(
+        default=None, description="gTribRegular, NFS-e only."
+    )
+    deferral: IbsCbsDeferral | None = Field(
+        default=None, description="gDif, NFS-e only."
+    )
+    presumed_credit: str | None = Field(
+        default=None, pattern=r"^\d{2}$", description="cCredPres, NFS-e only."
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.model_dump(mode="json", exclude_none=True)
 
 
 class PresumedCredit(BaseModel):
@@ -232,6 +279,23 @@ class Product(BaseModel):
     nbs: str | None = Field(
         default=None, description="NBS code of the service, nfse only."
     )
+    municipal_service_code: str | None = Field(
+        default=None,
+        pattern=r"^\d{3}$",
+        description="cTribMun, the municipality's own code, three digits. nfse only.",
+    )
+    internal_code: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z0-9]{1,20}$",
+        description="cIntContrib, the issuer's own code for the service. nfse only.",
+    )
+    conditional_discount: Decimal | None = Field(
+        default=None,
+        gt=0,
+        le=Decimal("999999999999999.99"),
+        decimal_places=2,
+        description="Conditional discount in BRL, nfse only.",
+    )
     service_discount: float | None = Field(
         default=None, description="Unconditional discount, nfse only."
     )
@@ -283,6 +347,9 @@ class Product(BaseModel):
         _NFSE_FIELDS = {
             "service_code",
             "nbs",
+            "municipal_service_code",
+            "internal_code",
+            "conditional_discount",
             "service_discount",
             "tax_retained",
             "observations",
@@ -305,7 +372,9 @@ class Product(BaseModel):
             value = getattr(self, weight)
             if value is not None:
                 data[weight] = _decimal_str(value)
-        br = self.model_dump(exclude_none=True, include=_BR_FIELDS - {"tax"})
+        br = self.model_dump(exclude_none=True, include=_BR_FIELDS - {"tax", "ibs_cbs"})
+        if self.ibs_cbs is not None:
+            br["ibs_cbs"] = self.ibs_cbs.to_dict()
         if isinstance(self.tax, Tax):
             br["tax"] = self.tax.to_dict()
         elif self.tax is not None:
@@ -335,6 +404,12 @@ class Product(BaseModel):
         }
         if self.nbs is not None:
             result["nbs"] = self.nbs
+        if self.municipal_service_code is not None:
+            result["municipal_service_code"] = self.municipal_service_code
+        if self.internal_code is not None:
+            result["internal_code"] = self.internal_code
+        if self.conditional_discount is not None:
+            result["conditional_discount"] = _decimal_str(self.conditional_discount)
         if from_catalog and "tax_retained" not in self.model_fields_set:
             del result["tax_retained"]
         return result

@@ -27,6 +27,33 @@ class Address(BaseModel):
         ),
     )
     country_name: str | None = Field(default=None)
+    country_iso2: str | None = Field(
+        default=None,
+        pattern=r"^[A-Z]{2}$",
+        description=(
+            "ISO 3166 alpha-2 country code, NFS-e only: the code a "
+            "recipient abroad (state EX) takes instead of country_code."
+        ),
+    )
+    postal_code: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=11,
+        description="Postal code abroad, NFS-e only.",
+    )
+    province: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=60,
+        description="State, province or region abroad, NFS-e only.",
+    )
+    complement: str | None = Field(
+        default=None,
+        description=(
+            "Apartment, suite or block. One the document cannot carry is "
+            "left out by the API with the warning RECIPIENT_COMPLEMENT_OMITTED."
+        ),
+    )
     state_registration: str | None = Field(
         default=None,
         description=(
