@@ -440,6 +440,41 @@ held only as a summary is an `APIError` 409 with `code == "RECEIVED_XML_NOT_AVAI
 (manifest it first), and an account with nothing left to pay for it a
 `PaymentRequiredError` with `code == "RECEIVED_PAYMENT_REQUIRED"`.
 
+## NBS, activity warnings and language
+
+An NFS-e line takes `nbs`, the NBS code of the service (nine digits or dotted,
+`"1.1502.10.00"`), sent beside `service_code`. The API requires it on a line that
+carries `ibs_cbs` (422 `NBS_REQUIRED`) and refuses an unknown code (422
+`NBS_UNKNOWN`); both arrive as an `APIError`. Catalog items take it too:
+`Items.upsert()`, `create()` and `update()`.
+
+```python
+result = invoice.issue(
+    document_type=DocumentType.NFSE,
+    client_name="Maria Silva",
+    tax_id="12345678909",
+    items=[
+        Product(
+            description="Consultoria",
+            unit_price=Decimal("1500.00"),
+            service_code="01.07",
+            nbs="1.1502.10.00",
+        )
+    ],
+    accept_language="pt-BR",
+)
+for warning in result["warnings"]:
+    print(warning["code"], warning["message"], warning["field"])
+```
+
+`issue()` adds `warnings` to its result: always a list, empty when there are none, of
+activity findings (`MEI_ACTIVITY_NOT_ALLOWED`, `ACTIVITY_NOT_REGISTERED`,
+`MEI_NO_ICMS_ACTIVITY`) as dicts with `code`, `message` and `field` (`None` when no
+single field is at fault). `validate()` returns the same findings in
+`result.warnings`. `accept_language` (`pt-BR`, `en` or `es`; the API falls back to
+English) localizes their `message` on `issue()` and `validate()`; it goes only in the
+`Accept-Language` header and is left off when unset.
+
 ## Fix the issuer: `Company.update`
 
 ```python
@@ -470,7 +505,10 @@ codes, or a `simples_apuracao_ibs_cbs` other than 1 (IBS/CBS in the DAS) or 3
 (outside it, which an ME/EPP needs for IBS/CBS on an NFS-e). `fiscal_fields`
 (`tax_regime`, `simples_nacional`, `simples_apuracao`, `simples_apuracao_ibs_cbs`,
 `state_registration`, `service_code`) belong to the company owner: anyone else is
-an `APIError` 403. An OAuth credential needs `company:write`
+an `APIError` 403. `block_activity_mismatch=True` (also the owner's alone) makes the
+API refuse an issuance with `MEI_ACTIVITY_NOT_ALLOWED` or `ACTIVITY_NOT_REGISTERED` as
+a 422 instead of a warning; `False` turns it back off, and only a `bool` is accepted.
+An OAuth credential needs `company:write`
 (`InsufficientPermissionError` without it); an IBGE check that cannot run right
 now is a 503 with nothing written — retry.
 
@@ -740,7 +778,7 @@ Invoice(api_key="...").issue(
 
 - `kind` is `product` (NF-e) or `service` (NFS-e) and decides which fiscal fields an item
   may carry: `ncm`, `cfop`, `tax_situation`, `origin`, `cest`, `gtin` for a product,
-  `service_code` and `iss_retained` for a service. The API refuses the other kind's (422).
+  `service_code`, `nbs` and `iss_retained` for a service. The API refuses the other kind's (422).
   Nothing fiscal is required to save an item; an NF-e still refuses a line with no `ncm` or
   `cfop` when it is issued.
 - `create()` is the API's upsert: an item with the same `external_reference` (or the same
