@@ -30,6 +30,13 @@ FISCAL_FIELDS = (
     "simples_apuracao_ibs_cbs",
     "state_registration",
     "service_code",
+    "approximate_tax_simples_percent",
+    "approximate_tax_federal_percent",
+    "approximate_tax_state_percent",
+    "approximate_tax_municipal_percent",
+    "municipal_registration",
+    "special_tax_regime",
+    "iss_rate",
 )
 
 _ENUMS = {
@@ -37,6 +44,7 @@ _ENUMS = {
     "simples_nacional": ("1", "2", "3"),
     "simples_apuracao": ("1", "2", "3"),
     "simples_apuracao_ibs_cbs": ("1", "3"),
+    "special_tax_regime": ("0", "1", "2", "3", "4", "5", "6", "9"),
 }
 
 
@@ -61,8 +69,15 @@ class Company(_Client):
         simples_nacional (1-3), simples_apuracao (1-3),
         simples_apuracao_ibs_cbs (1 in the DAS, 3 outside it; only 3
         lets an ME/EPP's NFS-e carry IBS/CBS), state_registration and
-        service_code; they are the company
-        owner's alone, and anyone else gets an APIError 403.
+        service_code; and, for an NFS-e, `municipal_registration` (up to
+        15 letters or digits), `special_tax_regime` (regEspTrib: 0, 1, 2,
+        3, 4, 5, 6 or 9), `iss_rate` (percent above 0 and at most 5) and the
+        approximate-tax defaults `approximate_tax_simples_percent`,
+        `approximate_tax_federal_percent`, `approximate_tax_state_percent`
+        and `approximate_tax_municipal_percent` (percent, 0 to 100, 0 to
+        99.99 for the Simples one); they are the company
+        owner's alone, and anyone else gets an APIError 403. A percentage or
+        rate is checked by the API, which answers a bad one as an APIError.
 
         `block_activity_mismatch` (owner only, else APIError 403) makes
         the API refuse an issuance whose activity is not allowed or not
