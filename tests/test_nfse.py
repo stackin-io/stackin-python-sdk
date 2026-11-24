@@ -381,7 +381,7 @@ class TestRefusedShapes(unittest.TestCase):
 
     def test_caepf_and_other_dfe_shapes(self):
         self.refused(lambda: NfseProvider(caepf="123"))
-        self.refused(lambda: NfseProvider(unknown="x"))
+        self.refused(lambda: NfseProvider(**{"unknown": "x"}))
         self.refused(lambda: NfseDetails(recipient_caepf="1234567890123a"))
         self.refused(lambda: OtherDfe(key="", description="x"))
         self.refused(lambda: OtherDfe(key="K" * 51, description="x"))
