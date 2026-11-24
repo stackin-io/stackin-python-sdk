@@ -21,7 +21,6 @@ criticality = "high"
 name = "pypi"
 kind = "pypi"
 run_by = "github_actions"
-observe = true
 workflow = "python-publish-pypi.yml"
 stages = ["prod"]
 package = "stackin-python-sdk"
