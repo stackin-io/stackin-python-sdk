@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.28.0 — 2026-11-24
+
+### Features
+- **company:** block_activity_mismatch on update
+- **invoice:** warnings on the issue result and accept_language on issue and validate
+- **items:** add nbs to NFS-e lines and catalog items
+
+### Docs
+- nbs, warnings, accept_language and block_activity_mismatch
+
+### Tests
+- nbs, warnings, accept_language and block_activity_mismatch
+
 ## v0.27.0 — 2026-11-23
 
 ### Features
