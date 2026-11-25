@@ -19,6 +19,12 @@ class NbsSuggestion(BaseModel):
     operation_indicator: str | None = None
     ibs_cbs_classification: str | None = None
     classification_name: str | None = None
+    classification_cst: str | None = None
+    reduction_ibs: float | None = None
+    reduction_cbs: float | None = None
+    legal_reference: str | None = None
+    incidence: str | None = None
+    operation_variants: dict[str, str] | None = None
 
 
 class ReferenceSource(BaseModel):
