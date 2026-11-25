@@ -168,13 +168,13 @@ def _discount_str(discount: Decimal | int | float | str) -> str:
     return format(value, "f")
 
 
-def _issued_at_str(issued_at: datetime) -> str:
+def _issued_at_str(issued_at: datetime, name: str = "issued_at") -> str:
     """ISO 8601 with the offset; a naive value has no moment to send."""
     if not isinstance(issued_at, datetime):
-        raise ValueError("issued_at must be a datetime")
+        raise ValueError(f"{name} must be a datetime")
     if issued_at.utcoffset() is None:
         raise ValueError(
-            "issued_at must be timezone-aware: a naive datetime does not "
+            f"{name} must be timezone-aware: a naive datetime does not "
             "say which moment it is"
         )
     return issued_at.isoformat()
@@ -372,6 +372,8 @@ def _issue_payload(
     client_email: str | None,
     client_phone: str | None,
     contingency: bool,
+    contingency_started_at: datetime | None,
+    contingency_reason: str | None,
     presence: str | None,
     intermediary: Intermediary | None,
     transport: Transport | None,
@@ -466,6 +468,12 @@ def _issue_payload(
         payload["client_phone"] = client_phone
     if contingency:
         payload["contingency"] = True
+    if contingency_started_at is not None:
+        payload["contingency_started_at"] = _issued_at_str(
+            contingency_started_at, "contingency_started_at"
+        )
+    if contingency_reason is not None:
+        payload["contingency_reason"] = contingency_reason
     if recipient_municipal_registration is not None:
         payload["recipient_municipal_registration"] = recipient_municipal_registration
     if foreign_id_missing_reason is not None:
@@ -509,6 +517,8 @@ class Invoice(_Client):
         client_email: str | None = None,
         client_phone: str | None = None,
         contingency: bool = False,
+        contingency_started_at: datetime | None = None,
+        contingency_reason: str | None = None,
         presence: str | None = None,
         intermediary: Intermediary | None = None,
         transport: Transport | None = None,
@@ -569,7 +579,11 @@ class Invoice(_Client):
 
         `contingency=True` sends an NF-e through the UF's contingency
         authorizer (SVC-AN/SVC-RS, tpEmis 6/7) for when its own is down.
-        Left False, it is not sent.
+        Left False, it is not sent. `contingency_started_at` (a timezone-aware
+        datetime, not later than the emission) and `contingency_reason` (15
+        to 256 characters) go only with `contingency=True`; the API refuses
+        them otherwise and defaults them to the emission moment and a
+        standard reason.
 
         NF-e only, each left out of the body when unset: `presence`
         (indPres: 0, 1, 2, 3, 5 or 9), `intermediary` (the marketplace the
@@ -624,6 +638,8 @@ class Invoice(_Client):
             client_email=client_email,
             client_phone=client_phone,
             contingency=contingency,
+            contingency_started_at=contingency_started_at,
+            contingency_reason=contingency_reason,
             presence=presence,
             intermediary=intermediary,
             transport=transport,
@@ -737,6 +753,8 @@ class Invoice(_Client):
         client_email: str | None = None,
         client_phone: str | None = None,
         contingency: bool = False,
+        contingency_started_at: datetime | None = None,
+        contingency_reason: str | None = None,
         presence: str | None = None,
         intermediary: Intermediary | None = None,
         transport: Transport | None = None,
@@ -779,6 +797,8 @@ class Invoice(_Client):
             client_email=client_email,
             client_phone=client_phone,
             contingency=contingency,
+            contingency_started_at=contingency_started_at,
+            contingency_reason=contingency_reason,
             presence=presence,
             intermediary=intermediary,
             transport=transport,
@@ -982,6 +1002,7 @@ class Invoice(_Client):
         limit: int | None = None,
         offset: int | None = None,
         company: str | None = None,
+        accept_language: str | None = None,
     ) -> dict:
         """Documents other companies issued against this one.
 
@@ -993,6 +1014,10 @@ class Invoice(_Client):
         The first 50 received a month are included in every plan; each
         one after that takes R$ 0,05 from the account credit, unless
         usage().received_free exempts the account.
+
+        The page carries a `sync` object: `status` (`ok`, `cooling_down`,
+        `failing` or `never`), `next_sync_at`, `competing_reader` and a
+        `hint`, which `accept_language` (pt-BR, en or es) localizes.
         """
         params = {}
         if limit is not None:
@@ -1002,7 +1027,13 @@ class Invoice(_Client):
 
         return cast(
             dict,
-            self._request("GET", "/received-invoices", params=params, company=company),
+            self._request(
+                "GET",
+                "/received-invoices",
+                params=params,
+                company=company,
+                accept_language=accept_language,
+            ),
         )
 
     def sync_received(self, *, company: str | None = None) -> ReceivedSync:
@@ -1114,6 +1145,7 @@ class Invoice(_Client):
         recipient_state: str | None = None,
         answers: dict[str, Any] | None = None,
         company: str | None = None,
+        accept_language: str | None = None,
     ) -> dict:
         """A suggested fiscal classification for one item's description.
 
@@ -1123,6 +1155,11 @@ class Invoice(_Client):
         `confidence`, and `missing_information` lists what would settle
         it (pass those back in `answers`). Someone confirms it before it
         goes on an item; the codes decide the tax owed.
+
+        `answers` takes `origin` (`resale` or `own_production`) to settle
+        the NF-e CFOP: x102 for a resold product, x101 for the company's
+        own production. `accept_language` (pt-BR, en or es) is sent as the
+        Accept-Language header only.
         """
         if not 3 <= len(description) <= 500:
             raise ValueError("description must be 3 to 500 characters")
@@ -1140,7 +1177,13 @@ class Invoice(_Client):
 
         return cast(
             dict,
-            self._request("POST", "/ai/classify", json=payload, company=company),
+            self._request(
+                "POST",
+                "/ai/classify",
+                json=payload,
+                company=company,
+                accept_language=accept_language,
+            ),
         )
 
     def stats(self, *, days: int | None = None, company: str | None = None) -> dict:
