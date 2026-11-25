@@ -203,6 +203,17 @@ client.issue(..., purpose=Purpose.RETURN, referenced_keys=["35261112345678000195
 client.issue(..., contingency=True)
 ```
 
+With `contingency=True` it also takes `contingency_started_at` (a timezone-aware `datetime`, written as `dhCont`; defaults to the emission moment and may not be later than it) and `contingency_reason` (15 to 256 characters, written as `xJust`; the API has a default reason). Both are left out of the body when unset, and the API refuses either one without `contingency=True`:
+
+```python
+client.issue(
+    ...,
+    contingency=True,
+    contingency_started_at=datetime(2026, 11, 25, 9, 0, tzinfo=timezone.utc),
+    contingency_reason="SEFAZ authorizer unavailable since 09:00",
+)
+```
+
 ### A buyer abroad (NF-e)
 
 A `recipient_address` with `state="EX"` is a buyer outside Brazil. There `tax_id` is left out, `zip_code` and `city_code` may be left out, and `country_code` (the BACEN code, not Brazil's 1058) is required, with `country_name` beside it. The SDK does not check the BACEN code's check digit: the official table has countries whose digit does not close.
@@ -596,6 +607,11 @@ confirm it, and only then put it on an item. `missing_information` lists what
 would settle it; answer through `answers` and ask again. `description` is 3 to
 500 characters, checked locally.
 
+`answers` takes `origin` — `"resale"` or `"own_production"` — to settle an NF-e's CFOP: a
+resold product is `x102`, the company's own production `x101`. When the description does
+not say which, `missing_information` asks for it. `classify()` takes `accept_language`
+(`pt-BR`, `en` or `es`), sent as the `Accept-Language` header only.
+
 ## Documents issued against you
 
 Everything above serves the **issuer**. These two serve the **recipient**: what
@@ -612,11 +628,24 @@ The first 50 received documents a month are included in every plan; each one aft
 that takes R$ 0,05 from the account credit. Some existing accounts are exempt,
 which `usage().received_free` tells.
 
+Besides `data`, the page carries a `sync` object that says how fresh the list is:
+
+| Field | Meaning |
+|---|---|
+| `status` | `ok` (the last read worked), `cooling_down` (the SEFAZ asked for a wait), `failing` (reads keep failing) or `never` (nothing read yet: no certificate, or the first sweep is pending) |
+| `next_sync_at` | no read is allowed before this instant (UTC) |
+| `competing_reader` | `True` when the SEFAZ blocks the reads because another system reads the same CNPJ with the same certificate |
+| `hint` | the usual cause and what to do, in the language of `accept_language` (`pt-BR`, `en` or `es`) |
+
+`received()` takes `accept_language` for the `hint`; `last_synced_at`, `failing_since`, `error_code`, `error_message` and `gaps_pending` come in the same object.
+
 ```python
 from stackin import Manifestation
 
 result = client.sync_received()   # ReceivedSync: stored, pages, next_sync_at
-page = client.received(limit=20)
+page = client.received(limit=20, accept_language="en")
+if page["sync"]["status"] != "ok":
+    print(page["sync"]["hint"])
 for document in page["data"]:
     print(document["access_key"], document["issuer_name"], document["amount"])
 
@@ -681,11 +710,14 @@ Taxpayer(api_key="...").get("00000000000191")
 
 `metadata` is passed through as the API sends it and differs per kind: `utrib` on an NCM, `ncm_code` on a CEST, `tax_type` on a CST, `None` on an ISS service.
 
-`nbs_suggestions(service_code)` answers the NBS codes NFS-e Anexo VIII pairs with a service code (`1.07`, `1.03.02` or `010302`), as an `NbsSuggestions` whose `suggestions` each carry `nbs`, `description`, `operation_indicator` and `ibs_cbs_classification` for a line's `nbs` and `ibs_cbs`. They are suggestions only: nothing is applied unless you send it.
+`nbs_suggestions(service_code)` answers the NBS codes NFS-e Anexo VIII pairs with a service code (`1.07`, `1.03.02` or `010302`), as an `NbsSuggestions` whose `suggestions` each carry `nbs`, `description`, `operation_indicator` and `ibs_cbs_classification` for a line's `nbs` and `ibs_cbs`, and, when the official cClassTrib table has them, `classification_name`, `classification_cst` (for `ibs_cbs.cst`), `reduction_ibs` and `reduction_cbs` (percent reductions, `None` when the table gives none), `legal_reference` (the LC 214/2025 article), `incidence` (where Anexo VIII says the IBS is due) and `operation_variants`, the cIndOp for the same operation when it is not onerous or the acquirer is abroad (`onerous_domestic`, `onerous_abroad`, `free_domestic`, `free_abroad`). They are suggestions only: nothing is applied unless you send it.
 
 ```python
 for found in ref.nbs_suggestions("1.07").suggestions:
     print(found.nbs, found.operation_indicator, found.ibs_cbs_classification)
+    print(found.classification_cst, found.reduction_ibs, found.legal_reference)
+    if found.operation_variants:
+        print(found.operation_variants["free_abroad"])
 ```
 
 `cities(name, state=None)` lists the municipalities whose name starts with `name`, at most 20, each with its IBGE `code` — issuing resolves `city_code` by itself, so this is for a name that matches more than one:
